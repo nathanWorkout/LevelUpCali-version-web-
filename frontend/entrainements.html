@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entraînements - LevelUpCali</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="entrainements.css">
+</head>
+<body>
+    <div class="background"></div>
+    
+    <header>
+        <h2>LevelUpCali</h2>
+        <nav>
+            <ul>
+                <li><a href="index.html">Accueil</a></li>
+                <li><a href="planning.html">Planning</a></li>
+                <li><a href="entrainements.html">Entrainements</a></li>
+                <li><a href="graphiques.html">Graphiques</a></li>
+                <li><a href="analyse.html">Analyse de mouvements</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="training-container">
+        <!-- Header Section -->
+        <div class="training-header">
+            <h1>Mes Entraînements</h1>
+            <button class="btn-create" id="btnCreateTraining">
+                <span>+</span> Créer un entraînement
+            </button>
+        </div>
+
+        <!-- Filters Section -->
+        <div class="filters-section">
+            <div class="filter-group">
+                <label>Type :</label>
+                <select id="filterType" class="filter-select">
+                    <option value="all">Tous</option>
+                    <option value="pull">Pull</option>
+                    <option value="push">Push</option>
+                    <option value="legs">Legs</option>
+                    <option value="full">Full Body</option>
+                    <option value="skills">Skills</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Difficulté :</label>
+                <select id="filterDifficulty" class="filter-select">
+                    <option value="all">Toutes</option>
+                    <option value="beginner">Débutant</option>
+                    <option value="intermediate">Intermédiaire</option>
+                    <option value="advanced">Avancé</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Training List -->
+        <div class="training-list" id="trainingList"></div>
+    </main>
+
+    <!-- Modal Création/Édition -->
+    <div class="modal" id="trainingModal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="modalTitle">Créer un entraînement</h2>
+                <button class="btn-close" id="btnCloseModal">&times;</button>
+            </div>
+            
+            <form id="trainingForm">
+                <div class="form-section">
+                    <h3>Informations générales</h3>
+                    
+                    <div class="form-group">
+                        <label for="trainingName">Nom de l'entraînement *</label>
+                        <input type="text" id="trainingName" required placeholder="Ex: Pull Day Intense">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="trainingType">Type *</label>
+                            <select id="trainingType" required>
+                                <option value="">Sélectionner...</option>
+                                <option value="pull">Pull</option>
+                                <option value="push">Push</option>
+                                <option value="legs">Legs</option>
+                                <option value="full">Full Body</option>
+                                <option value="skills">Skills (push ou pull)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="trainingDifficulty">Difficulté *</label>
+                            <select id="trainingDifficulty" required>
+                                <option value="">Sélectionner...</option>
+                                <option value="beginner">Débutant</option>
+                                <option value="intermediate">Intermédiaire</option>
+                                <option value="advanced">Avancé</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="trainingDuration">Durée estimée</label>
+                            <div class="duration-inputs">
+                                <div class="input-with-unit">
+                                    <input type="number" id="trainingHours" min="0" max="10" placeholder="0">
+                                    <span class="unit-label">h</span>
+                                </div>
+                                <div class="input-with-unit">
+                                    <input type="number" id="trainingMinutes" min="0" max="59" placeholder="60">
+                                    <span class="unit-label">min</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="trainingRest">Repos entre séries</label>
+                            <div class="input-with-unit">
+                                <input type="number" id="trainingRest" min="0" max="300" placeholder="90">
+                                <select id="trainingRestUnit" class="unit-select">
+                                    <option value="sec">secondes</option>
+                                    <option value="min">minutes</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="trainingDescription">Description</label>
+                        <textarea id="trainingDescription" rows="3" placeholder="Objectifs, conseils..."></textarea>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-header">
+                        <h3>Exercices</h3>
+                        <button type="button" class="btn-add-exercise" id="btnAddExercise">
+                            + Ajouter un exercice
+                        </button>
+                    </div>
+                    
+                    <div class="exercises-list" id="exercisesList"></div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-cancel" id="btnCancelForm">Annuler</button>
+                    <button type="submit" class="btn-submit">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Détails -->
+    <div class="modal" id="detailsModal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="detailsName"></h2>
+                <button class="btn-close" id="btnCloseDetails">&times;</button>
+            </div>
+            
+            <div class="details-content">
+                <div class="details-info">
+                    <div class="info-card">
+                        <span class="info-label">Type</span>
+                        <span class="info-value" id="detailsType"></span>
+                    </div>
+                    <div class="info-card">
+                        <span class="info-label">Difficulté</span>
+                        <span class="info-value" id="detailsDifficulty"></span>
+                    </div>
+                    <div class="info-card">
+                        <span class="info-label">Durée</span>
+                        <span class="info-value" id="detailsDuration"></span>
+                    </div>
+                    <div class="info-card">
+                        <span class="info-label">Repos</span>
+                        <span class="info-value" id="detailsRest"></span>
+                    </div>
+                </div>
+
+                <div class="details-description" id="detailsDescriptionContainer">
+                    <h3>Description</h3>
+                    <p id="detailsDescription"></p>
+                </div>
+
+                <div class="details-exercises">
+                    <h3>Liste des exercices</h3>
+                    <div class="exercises-display" id="detailsExercises"></div>
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn-delete" id="btnDeleteTraining">Supprimer</button>
+                    <button class="btn-complete" id="btnCompleteTraining">Marquer comme effectué</button>
+                    <button class="btn-edit" id="btnEditTraining">Modifier</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="entrainements.js"></script>
+</body>
+</html>

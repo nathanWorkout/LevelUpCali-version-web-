@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graphiques - LevelUpCali</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="graphiques.css">
+</head>
+<body>
+    <div class="background"></div>
+    
+    <header>
+        <h2>LevelUpCali</h2>
+        <nav>
+            <ul>
+                <li><a href="index.html">Accueil</a></li>
+                <li><a href="planning.html">Planning</a></li>
+                <li><a href="entrainements.html">Entrainements</a></li>
+                <li><a href="graphiques.html">Graphiques</a></li>
+                <li><a href="analyse.html">Analyse de mouvements</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="graphs-container">
+        <!-- Header Section -->
+        <div class="graphs-header">
+            <h1>Suivi de Performances</h1>
+            <button class="btn-add-record" id="btnAddRecord">
+                <span>+</span> Ajouter une performance
+            </button>
+        </div>
+
+        <!-- Stats Overview -->
+        <div class="stats-overview">
+            <div class="stat-card">
+                <div class="stat-info">
+                    <div class="stat-value" id="totalRecords">0</div>
+                    <div class="stat-label">Performances enregistrées</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-info">
+                    <div class="stat-value" id="totalExercises">0</div>
+                    <div class="stat-label">Exercices suivis</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-info">
+                    <div class="stat-value" id="progressRate">0%</div>
+                    <div class="stat-label">Progression moyenne</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Exercise Selector -->
+        <div class="exercise-selector-section">
+            <div class="selector-header">
+                <h2>Choisir un exercice</h2>
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-filter="all">Tous</button>
+                    <button class="filter-btn" data-filter="pull">Pull</button>
+                    <button class="filter-btn" data-filter="push">Push</button>
+                    <button class="filter-btn" data-filter="legs">Legs</button>
+                    <button class="filter-btn" data-filter="skills">Skills</button>
+                </div>
+            </div>
+            <div class="exercise-list" id="exerciseList"></div>
+        </div>
+
+        <!-- Graph Section -->
+        <div class="graph-section" id="graphSection" style="display: none;">
+            <div class="graph-header">
+                <h2 id="graphTitle">Progression</h2>
+                <div class="graph-controls">
+                    <select id="timeRange" class="time-select">
+                        <option value="7">7 derniers jours</option>
+                        <option value="30" selected>30 derniers jours</option>
+                        <option value="90">3 derniers mois</option>
+                        <option value="365">1 an</option>
+                        <option value="all">Tout</option>
+                    </select>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="performanceChart"></canvas>
+            </div>
+            <div class="performance-details" id="performanceDetails"></div>
+        </div>
+    </main>
+
+    <!-- Modal Ajout Performance -->
+    <div class="modal" id="recordModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Ajouter une performance</h2>
+                <button class="btn-close" id="btnCloseModal">&times;</button>
+            </div>
+            
+            <form id="recordForm">
+                <div class="form-section">
+                    <div class="form-group">
+                        <label for="exerciseName">Exercice *</label>
+                        <input type="text" id="exerciseName" required placeholder="Ex: Tractions" list="exercisesList">
+                        <datalist id="exercisesList"></datalist>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="exerciseCategory">Catégorie *</label>
+                        <select id="exerciseCategory" required>
+                            <option value="">Sélectionner...</option>
+                            <option value="pull">Pull</option>
+                            <option value="push">Push</option>
+                            <option value="legs">Legs</option>
+                            <option value="skills">Skills</option>
+                        </select>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="recordReps">Répétitions *</label>
+                            <input type="number" id="recordReps" required min="1" placeholder="12">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="recordSets">Séries</label>
+                            <input type="number" id="recordSets" min="1" placeholder="4">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="recordDate">Date *</label>
+                        <input type="date" id="recordDate" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="recordNotes">Notes (optionnel)</label>
+                        <textarea id="recordNotes" rows="3" placeholder="Ressenti, difficulté, observations..."></textarea>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-cancel" id="btnCancelForm">Annuler</button>
+                    <button type="submit" class="btn-submit">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="graphiques.js"></script>
+</body>
+</html>

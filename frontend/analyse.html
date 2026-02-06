@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Analyse biomécanique de mouvements calisthenics avec IA - Détection automatique des erreurs de posture">
+    <title>Analyse Biomécanique - LevelUpCali</title>
+    <link rel="stylesheet" href="analyse.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">LEVELUPCALI</div>
+            <div class="nav-links">
+                <a href="index.html">Accueil</a>
+                <a href="planning.html">Planning</a>
+                <a href="entrainements.html">Entraînements</a>
+                <a href="graphiques.html">Graphiques</a>
+                <a href="analyse.html" class="active">Analyse</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <section class="header-section">
+            <h1>ANALYSE BIOMÉCANIQUE</h1>
+            <p class="subtitle">Détecte les compensations invisibles • Corrige ta technique • Progresse efficacement</p>
+        </section>
+
+        <!-- Instructions Section -->
+        <section class="instructions-section">
+            <div class="instructions-container">
+                <h3 class="instructions-title">Pour une analyse optimale</h3>
+                <div class="instructions-list">
+                    <p><strong>Vue de profil :</strong> Place-toi perpendiculairement à la caméra (90°)</p>
+                    <p><strong>Corps complet :</strong> Tout ton corps doit être visible dans le cadre</p>
+                    <p><strong>Bon éclairage :</strong> Évite les contre-jours et zones sombres</p>
+                    <p><strong>Distance :</strong> Recule la caméra à 2-3 mètres minimum</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Upload Section -->
+        <section class="upload-section">
+            <div class="upload-container">
+                <!-- Image Tab -->
+                <div class="tab-content active" id="image-tab">
+                    <div class="upload-zone" id="image-upload-zone">
+                        <input type="file" id="image-input" accept="image/*" hidden>
+                        <div class="upload-icon">
+                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="17 8 12 3 7 8"/>
+                                <line x1="12" y1="3" x2="12" y2="15"/>
+                            </svg>
+                        </div>
+                        <p class="upload-text">Glisse une image ou <span class="upload-link">clique pour parcourir</span></p>
+                        <p class="upload-hint">JPG, PNG (max 10MB)</p>
+                    </div>
+                    
+                    <div class="preview-container" id="image-preview" style="display: none;">
+                        <img id="image-preview-img" alt="Preview">
+                        <button class="remove-btn" id="remove-image" type="button">×</button>
+                    </div>
+                    
+                    <button type="button" class="analyze-btn" id="analyze-image-btn" disabled>
+                        <span class="btn-text">Analyser l'image</span>
+                        <span class="btn-loader" style="display: none;">
+                            <span class="spinner"></span>
+                            Analyse en cours...
+                        </span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Results Section -->
+        <section class="results-section" id="results-section" style="display: none;">
+            <div class="results-container">
+                <h2 class="results-title">Résultats de l'analyse</h2>
+                
+                <!-- Media Result -->
+                <div class="result-media">
+                    <img id="result-image" style="display: none;" alt="Résultat annoté">
+                </div>
+
+                <!-- Analysis Card -->
+                <div class="analysis-card">
+                    <div class="card-header">
+                        <div class="figure-badge" id="figure-badge">Figure détectée</div>
+                        <div class="stats-chips" id="stats-chips"></div>
+                    </div>
+
+                    <div class="analysis-content">
+                        <!-- Cause -->
+                        <div class="analysis-block cause-block">
+                            <div class="block-content">
+                                <h3>Cause principale</h3>
+                                <p id="cause-text"></p>
+                            </div>
+                        </div>
+
+                        <!-- Compensation -->
+                        <div class="analysis-block compensation-block">
+                            <div class="block-content">
+                                <h3>Compensation détectée</h3>
+                                <p id="compensation-text"></p>
+                            </div>
+                        </div>
+
+                        <!-- Correction -->
+                        <div class="analysis-block correction-block">
+                            <div class="block-content">
+                                <h3>Correction recommandée</h3>
+                                <p id="correction-text"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Deviations -->
+                    <div class="deviations-section" id="deviations-section" style="display: none;">
+                        <h3>Détails des erreurs</h3>
+                        <div class="deviations-grid" id="deviations-grid"></div>
+                    </div>
+                </div>
+
+                <button type="button" class="new-analysis-btn" id="new-analysis-btn">
+                    Nouvelle analyse
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <script src="analyse.js"></script>
+</body>
+</html>
