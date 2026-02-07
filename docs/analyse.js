@@ -1,17 +1,6 @@
 // Configuration
 const API_URL = "https://levelupcali-version-web.onrender.com";
 
-// Exemple d'appel
-fetch(`${API_URL}/analyze_static`, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    image_base64: imageData
-  })
-})
-
 // State
 let state = {
     currentFile: null,
@@ -164,7 +153,7 @@ async function analyzeImage() {
         }
     } catch (error) {
         console.error('Erreur:', error);
-        showError('Erreur lors de l\'analyse. Vérifie que le serveur est lancé sur le port 5000.');
+        showError('Erreur lors de l\'analyse. Vérifie que le serveur est accessible.');
     } finally {
         setLoading(elements.analyzeImageBtn, false);
         state.isProcessing = false;
@@ -228,15 +217,15 @@ function displayDeviations(deviations) {
     
     const labels = {
         'hanches_flechies': 'Hanches fléchies',
-        'coudes_flechis': ' Coudes fléchis',
-        'genoux_flechis': ' Genoux fléchis',
-        'hanches_basses': ' Hanches basses',
-        'position_epaules': ' Position épaules',
-        'amplitude_insuffisante': ' Amplitude insuffisante',
-        'verrouillage_incomplet': ' Verrouillage incomplet',
-        'execution_rapide': ' Exécution rapide',
-        'extension_incomplete': ' Extension incomplète',
-        'profondeur_insuffisante': ' Profondeur insuffisante'
+        'coudes_flechis': 'Coudes fléchis',
+        'genoux_flechis': 'Genoux fléchis',
+        'hanches_basses': 'Hanches basses',
+        'position_epaules': 'Position épaules',
+        'amplitude_insuffisante': 'Amplitude insuffisante',
+        'verrouillage_incomplet': 'Verrouillage incomplet',
+        'execution_rapide': 'Exécution rapide',
+        'extension_incomplete': 'Extension incomplète',
+        'profondeur_insuffisante': 'Profondeur insuffisante'
     };
     
     for (const [key, value] of Object.entries(deviations)) {
@@ -275,7 +264,7 @@ function setLoading(button, isLoading) {
 }
 
 function showError(message) {
-    alert(`${message}`);
+    alert(message);
 }
 
 // ============================================================================
@@ -294,7 +283,6 @@ function fileToBase64(file) {
 // START
 // ============================================================================
 document.addEventListener('DOMContentLoaded', init);
-
 console.log('LevelUpCali - Analyse Biomécanique v12.0');
 console.log('API:', API_URL);
 console.log('Mode: Analyse image statique avec landmarks colorés');
