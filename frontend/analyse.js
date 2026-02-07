@@ -169,7 +169,7 @@ function displayResults(data) {
     // Show section
     elements.resultsSection.style.display = 'block';
     
-    // Media - Image avec landmarks annotés
+    // Media - Image avec landmarks
     if (data.image_base64) {
         elements.resultImage.src = `data:image/jpeg;base64,${data.image_base64}`;
         elements.resultImage.style.display = 'block';
