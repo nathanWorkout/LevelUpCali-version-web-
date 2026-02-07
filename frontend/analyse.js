@@ -1,5 +1,16 @@
 // Configuration
-const API_URL = 'http://localhost:5000';
+const API_URL = "https://levelupcali-version-web.onrender.com";
+
+// Exemple d'appel
+fetch(`${API_URL}/analyze_static`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    image_base64: imageData
+  })
+})
 
 // State
 let state = {
