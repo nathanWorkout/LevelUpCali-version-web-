@@ -3,21 +3,17 @@
     padding: 0;
     box-sizing: border-box;
 }
-
 :root { font-size: 16px; }
-
 /* Disable shadows globally */
 *, *::before, *::after { box-shadow: none !important; text-shadow: none !important; }
 
-/* ================== HOME PAGE  ==================*/
-
+/* ================== HOME PAGE ================== */
 body {
     background-color: #1a1a1a;
     font-family: Arial, Helvetica, sans-serif;
     position: relative;
     min-height: 100vh;
 }
-
 .background {
     position: fixed;
     top: 0;
@@ -30,8 +26,8 @@ body {
     background-repeat: no-repeat;
     z-index: -1;
 }
-/* ================== HEADER  ==================*/
 
+/* ================== HEADER ================== */
 header {
     background-color: rgba(13, 13, 13, 0.95);
     backdrop-filter: blur(10px);
@@ -44,8 +40,6 @@ header {
     top: 0;
     z-index: 100;
 }
-
-
 header h2 {
     color: #ffffff;
     font-size: 1.625rem; /* 26px */
@@ -55,15 +49,12 @@ header h2 {
     margin: 0;
     text-transform: uppercase;
 }
-
-
 nav ul {
     display: flex;
     gap: 0.9375rem; /* 15px */
     list-style: none;
     align-items: center;
 }
-
 nav li a {
     background-color: transparent;
     color: #ffffff;
@@ -76,13 +67,99 @@ nav li a {
     transition: all 0.3s ease;
     text-decoration: none;
 }
-
 nav li a:hover {
     background-color: #ffffff;
     color: #1a1a1a;
     transform: translateY(-2px);
 }
-
 nav li a:active {
     transform: translateY(0);
+}
+
+/* ================== RESPONSIVE TABLET ================== */
+@media (max-width: 1024px) {
+    header {
+        padding: 0.875rem 1.5rem;
+    }
+    
+    header h2 {
+        font-size: 1.5rem;
+    }
+    
+    nav ul {
+        gap: 0.75rem;
+    }
+    
+    nav li a {
+        padding: 0.5rem 1rem;
+        font-size: 0.8125rem;
+    }
+}
+
+/* ================== RESPONSIVE MOBILE ================== */
+@media (max-width: 768px) {
+    header {
+        padding: 0.75rem 1rem;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+    
+    header h2 {
+        font-size: 1.25rem;
+        flex: 1;
+        min-width: 100%;
+        text-align: center;
+    }
+    
+    nav {
+        width: 100%;
+    }
+    
+    nav ul {
+        width: 100%;
+        justify-content: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    
+    nav li a {
+        padding: 0.5rem 1rem;
+        font-size: 0.8125rem;
+    }
+}
+
+/* ================== RESPONSIVE SMALL MOBILE ================== */
+@media (max-width: 480px) {
+    header {
+        padding: 0.625rem 0.75rem;
+    }
+    
+    header h2 {
+        font-size: 1.125rem;
+    }
+    
+    nav li a {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.75rem;
+    }
+}
+
+
+@media (hover: none) and (pointer: coarse) {
+    nav li a {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    /* Désactive les effets hover sur tactile */
+    nav li a:hover {
+        transform: none;
+    }
+    
+    /* Active state pour feedback tactile */
+    nav li a:active {
+        transform: scale(0.96);
+    }
 }
