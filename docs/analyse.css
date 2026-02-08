@@ -52,53 +52,59 @@ body {
 }
 
 /* ============================================================================
-   NAVIGATION
+   HEADER
    ============================================================================ */
-.navbar {
-    background: rgba(20, 20, 20, 0.8);
+header {
+    background-color: rgba(13, 13, 13, 0.95);
     backdrop-filter: blur(10px);
-    border-bottom: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    z-index: 1000;
-}
-
-.nav-container {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 1.2rem var(--space-lg);
+    border-bottom: 1px solid #2a2a2a;
+    padding: 0.9375rem 1.875rem; /* 15px 30px */
     display: flex;
     justify-content: space-between;
     align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
-.logo {
-    font-size: 1.5rem;
+header h2 {
+    color: #ffffff;
+    font-size: 1.625rem; /* 26px */
     font-weight: 700;
-    letter-spacing: 1px;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    font-family: 'Segoe UI', 'Roboto', sans-serif;
+    letter-spacing: 0.5px;
+    margin: 0;
+    text-transform: uppercase;
 }
 
-.nav-links {
+nav ul {
     display: flex;
-    gap: var(--space-lg);
+    gap: 0.9375rem; /* 15px */
+    list-style: none;
+    align-items: center;
 }
 
-.nav-links a {
-    color: var(--text-secondary);
-    text-decoration: none;
+nav li a {
+    background-color: transparent;
+    color: #ffffff;
+    padding: 0.625rem 1.25rem; /* 10px 20px */
+    border: 1px solid #ffffff;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem; /* 14px */
     font-weight: 500;
-    padding: var(--space-xs) var(--space-sm);
-    border-radius: var(--radius-sm);
-    transition: var(--transition);
+    transition: all 0.3s ease;
+    text-decoration: none;
 }
 
-.nav-links a:hover,
-.nav-links a.active {
-    color: var(--text-primary);
-    background: var(--bg-hover);
+nav li a:hover {
+    background-color: #ffffff;
+    color: #1a1a1a;
+    transform: translateY(-2px);
+}
+
+nav li a:active {
+    transform: translateY(0);
 }
 
 /* ============================================================================
@@ -111,7 +117,7 @@ body {
 }
 
 /* ============================================================================
-   HEADER
+   HEADER SECTION
    ============================================================================ */
 .header-section {
     text-align: center;
@@ -493,12 +499,71 @@ body {
 }
 
 /* ============================================================================
-   RESPONSIVE
+   RESPONSIVE TABLET
+   ============================================================================ */
+@media (max-width: 1024px) {
+    header {
+        padding: 0.875rem 1.5rem;
+    }
+    
+    header h2 {
+        font-size: 1.5rem;
+    }
+    
+    nav ul {
+        gap: 0.75rem;
+    }
+    
+    nav li a {
+        padding: 0.5rem 1rem;
+        font-size: 0.8125rem;
+    }
+}
+
+/* ============================================================================
+   RESPONSIVE MOBILE
    ============================================================================ */
 @media (max-width: 768px) {
-    .nav-links {
-        gap: var(--space-xs);
-        font-size: 0.9rem;
+    header {
+        padding: 0.75rem 1rem;
+        justify-content: center;
+    }
+    
+    header h2 {
+        display: none;
+    }
+    
+    nav {
+        width: 100%;
+    }
+    
+    nav ul {
+        width: 100%;
+        justify-content: space-between;
+        gap: 0.5rem;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding-bottom: 0.25rem;
+    }
+    
+    nav ul::-webkit-scrollbar {
+        display: none;
+    }
+    
+    nav li {
+        flex-shrink: 0;
+        flex: 1;
+    }
+    
+    nav li a {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.75rem;
+        white-space: nowrap;
+        display: block;
+        text-align: center;
+        width: 100%;
     }
     
     .header-section h1 {
@@ -519,17 +584,17 @@ body {
     }
 }
 
+/* ============================================================================
+   RESPONSIVE SMALL MOBILE
+   ============================================================================ */
 @media (max-width: 480px) {
-    .nav-container {
-        padding: var(--space-sm);
+    header {
+        padding: 0.625rem 0.75rem;
     }
     
-    .logo {
-        font-size: 1.2rem;
-    }
-    
-    .nav-links {
-        display: none;
+    nav li a {
+        padding: 0.5rem 0.625rem;
+        font-size: 0.7rem;
     }
     
     .instruction-card {

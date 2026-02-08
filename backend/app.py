@@ -85,6 +85,90 @@ static_skills = {
 }
 
 # ============================================================================
+# Fonctions de prétraitement d'image
+# ============================================================================
+def adjust_brightness_auto(image):
+    """
+    Ajuste automatiquement la luminosité de l'image pour améliorer la détection MediaPipe.
+    Détecte si l'image est surexposée (trop lumineuse) et la corrige.
+    """
+    try:
+        # Conversion en LAB pour analyser la luminosité
+        lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+        l_channel, a, b = cv2.split(lab)
+        
+        # Analyse de la luminosité moyenne
+        mean_brightness = np.mean(l_channel)
+        logger.info(f"Luminosité moyenne détectée: {mean_brightness:.1f}/255")
+        
+        # Si l'image est trop lumineuse (surexposée au soleil)
+        if mean_brightness > 180:
+            logger.info("Image surexposée détectée - Correction automatique...")
+            
+            # Réduction de la luminosité proportionnelle
+            target_brightness = 140  # Cible optimale pour MediaPipe
+            brightness_factor = target_brightness / mean_brightness
+            
+            # Application de la correction
+            l_channel = np.clip(l_channel * brightness_factor, 0, 255).astype(np.uint8)
+            
+            # Reconstruction de l'image
+            corrected_lab = cv2.merge([l_channel, a, b])
+            corrected_image = cv2.cvtColor(corrected_lab, cv2.COLOR_LAB2BGR)
+            
+            logger.info(f"✓ Luminosité corrigée: {mean_brightness:.1f} → {np.mean(l_channel):.1f}")
+            return corrected_image
+        
+        # Si l'image est trop sombre
+        elif mean_brightness < 80:
+            logger.info("Image sous-exposée détectée - Correction automatique...")
+            
+            # Augmentation de la luminosité
+            target_brightness = 120
+            brightness_factor = target_brightness / mean_brightness
+            
+            l_channel = np.clip(l_channel * brightness_factor, 0, 255).astype(np.uint8)
+            corrected_lab = cv2.merge([l_channel, a, b])
+            corrected_image = cv2.cvtColor(corrected_lab, cv2.COLOR_LAB2BGR)
+            
+            logger.info(f"Luminosité augmentée: {mean_brightness:.1f} → {np.mean(l_channel):.1f}")
+            return corrected_image
+        
+        else:
+            logger.info("Luminosité correcte, aucune correction nécessaire")
+            return image
+            
+    except Exception as e:
+        logger.error(f"Erreur lors de l'ajustement de luminosité: {e}")
+        return image
+
+def enhance_image_for_detection(image):
+    """
+    Applique plusieurs améliorations pour optimiser la détection MediaPipe.
+    """
+    try:
+        # 1. Ajustement automatique de la luminosité
+        image = adjust_brightness_auto(image)
+        
+        # 2. Augmentation du contraste (CLAHE)
+        lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        l = clahe.apply(l)
+        enhanced_lab = cv2.merge([l, a, b])
+        image = cv2.cvtColor(enhanced_lab, cv2.COLOR_LAB2BGR)
+        
+        # 3. Réduction légère du bruit
+        image = cv2.fastNlMeansDenoisingColored(image, None, 5, 5, 7, 21)
+        
+        logger.info("✓ Image optimisée pour la détection")
+        return image
+        
+    except Exception as e:
+        logger.error(f"Erreur lors de l'amélioration de l'image: {e}")
+        return image
+
+# ============================================================================
 # Fonctions pour les calculs
 # ============================================================================
 def calculate_angle(a, b, c):
@@ -874,7 +958,7 @@ def home():
     return jsonify({
         "status": "ok",
         "message": "API d'analyse de mouvement complète",
-        "version": "7.5 - Détection handstand corrigée",
+        "version": "8.0 - Correction auto luminosité ajoutée",
         "endpoints": {
             "static": "/analyze_static",
             "video_dynamic": "/analyze_video_dynamic",
@@ -883,6 +967,11 @@ def home():
         "supported_exercises": {
             "static": ["handstand", "planche", "front_lever"],
             "dynamic": ["push_up", "pull_up", "dips"]
+        },
+        "features": {
+            "auto_brightness": "Ajustement automatique luminosité (images trop claires/sombres)",
+            "contrast_enhancement": "Amélioration automatique du contraste (CLAHE)",
+            "noise_reduction": "Réduction du bruit pour meilleure détection"
         },
         "timestamp": datetime.now().isoformat()
     })
@@ -912,19 +1001,28 @@ def analyze_static():
         except Exception as e:
             return jsonify({"status": "error", "message": f"Erreur décodage: {str(e)}"}), 400
 
+        # ========================================================================
+        # PRÉTRAITEMENT AUTOMATIQUE DE L'IMAGE
+        # ========================================================================
+        logger.info("📸 Prétraitement de l'image...")
+        image = enhance_image_for_detection(image)
+
         # Analyse Mediapipe
-        with mp_pose.Pose(static_image_mode=True, min_detection_confidence=0.7) as pose:
+        with mp_pose.Pose(static_image_mode=True, min_detection_confidence=0.5) as pose:
             image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             image.flags.writeable = False
             results = pose.process(image_rgb)
             image.flags.writeable = True
 
             if not results.pose_landmarks:
+                logger.warning("⚠️ Aucun corps détecté après prétraitement")
                 return jsonify({
                     "status": "error",
-                    "message": "Aucun corps détecté",
+                    "message": "Aucun corps détecté. Assure-toi d'être bien visible et que tout ton corps est dans le cadre.",
                     "detected_figure": "none"
                 }), 400
+
+            logger.info("✓ Corps détecté avec succès")
 
             user_angles = calculate_user_angles(results.pose_landmarks, image_rgb.shape)
 
