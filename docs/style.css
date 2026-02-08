@@ -100,15 +100,12 @@ nav li a:active {
 @media (max-width: 768px) {
     header {
         padding: 0.75rem 1rem;
-        flex-wrap: wrap;
-        gap: 0.75rem;
     }
     
     header h2 {
         font-size: 1.25rem;
-        flex: 1;
-        min-width: 100%;
         text-align: center;
+        margin-bottom: 0.75rem;
     }
     
     nav {
@@ -117,14 +114,28 @@ nav li a:active {
     
     nav ul {
         width: 100%;
-        justify-content: center;
-        gap: 0.5rem;
-        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 0.4rem;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding-bottom: 0.25rem;
+    }
+    
+    nav ul::-webkit-scrollbar {
+        display: none;
+    }
+    
+    nav li {
+        flex-shrink: 0;
     }
     
     nav li a {
-        padding: 0.5rem 1rem;
-        font-size: 0.8125rem;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.75rem;
+        white-space: nowrap;
+        display: block;
     }
 }
 
@@ -136,30 +147,12 @@ nav li a:active {
     
     header h2 {
         font-size: 1.125rem;
+        margin-bottom: 0.625rem;
     }
     
     nav li a {
-        padding: 0.5rem 0.75rem;
-        font-size: 0.75rem;
+        padding: 0.5rem 0.625rem;
+        font-size: 0.7rem;
     }
 }
 
-
-@media (hover: none) and (pointer: coarse) {
-    nav li a {
-        min-height: 44px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    /* Désactive les effets hover sur tactile */
-    nav li a:hover {
-        transform: none;
-    }
-    
-    /* Active state pour feedback tactile */
-    nav li a:active {
-        transform: scale(0.96);
-    }
-}
