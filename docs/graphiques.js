@@ -190,7 +190,6 @@ function renderExerciseList() {
     if (Object.keys(filteredGroups).length === 0) {
         container.innerHTML = `
             <div class="empty-state">
-                <div class="empty-state-icon">📊</div>
                 <div class="empty-state-title">Aucune performance enregistrée</div>
                 <div class="empty-state-text">
                     Pour visualiser vos graphiques de progression, vous devez d'abord compléter des entraînements.
