@@ -6,7 +6,6 @@
 :root { font-size: 16px; }
 /* Disable shadows globally */
 *, *::before, *::after { box-shadow: none !important; text-shadow: none !important; }
-
 /* ================== HOME PAGE ================== */
 body {
     background-color: #1a1a1a;
@@ -26,7 +25,6 @@ body {
     background-repeat: no-repeat;
     z-index: -1;
 }
-
 /* ================== HEADER ================== */
 header {
     background-color: rgba(13, 13, 13, 0.95);
@@ -75,7 +73,6 @@ nav li a:hover {
 nav li a:active {
     transform: translateY(0);
 }
-
 /* ================== RESPONSIVE TABLET ================== */
 @media (max-width: 1024px) {
     header {
@@ -95,17 +92,15 @@ nav li a:active {
         font-size: 0.8125rem;
     }
 }
-
 /* ================== RESPONSIVE MOBILE ================== */
 @media (max-width: 768px) {
     header {
         padding: 0.75rem 1rem;
+        justify-content: center;
     }
     
     header h2 {
-        font-size: 1.25rem;
-        text-align: center;
-        margin-bottom: 0.75rem;
+        display: none;
     }
     
     nav {
@@ -115,7 +110,7 @@ nav li a:active {
     nav ul {
         width: 100%;
         justify-content: space-between;
-        gap: 0.4rem;
+        gap: 0.5rem;
         flex-wrap: nowrap;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
@@ -129,6 +124,7 @@ nav li a:active {
     
     nav li {
         flex-shrink: 0;
+        flex: 1;
     }
     
     nav li a {
@@ -136,18 +132,14 @@ nav li a:active {
         font-size: 0.75rem;
         white-space: nowrap;
         display: block;
+        text-align: center;
+        width: 100%;
     }
 }
-
 /* ================== RESPONSIVE SMALL MOBILE ================== */
 @media (max-width: 480px) {
     header {
         padding: 0.625rem 0.75rem;
-    }
-    
-    header h2 {
-        font-size: 1.125rem;
-        margin-bottom: 0.625rem;
     }
     
     nav li a {
@@ -155,4 +147,3 @@ nav li a:active {
         font-size: 0.7rem;
     }
 }
-

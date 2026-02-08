@@ -427,16 +427,32 @@ def detect_static_figure(landmarks_sequence):
         avg_shoulder_x = np.mean(shoulder_x_values)
         avg_hip_x = np.mean(hip_x_values)
 
-        logger.info(f"Détection Y: nose={avg_nose_y:.3f}, hip={avg_hip_y:.3f}, wrist={avg_wrist_y:.3f}, shoulder={avg_shoulder_y:.3f}, elbow={avg_elbow_y:.3f}")
+        logger.info(f"Détection Y: nose={avg_nose_y:.3f}, hip={avg_hip_y:.3f}, wrist={avg_wrist_y:.3f}, shoulder={avg_shoulder_y:.3f}, elbow={avg_elbow_y:.3f}, ankle={avg_ankle_y:.3f}")
         logger.info(f"Détection Z: nose={avg_nose_z:.3f}, wrist={avg_wrist_z:.3f}, shoulder={avg_shoulder_z:.3f}, hip={avg_hip_z:.3f}, ankle={avg_ankle_z:.3f}")
         logger.info(f"Détection X: wrist={avg_wrist_x:.3f}, shoulder={avg_shoulder_x:.3f}, hip={avg_hip_x:.3f}")
 
-        # HANDSTAND : Tête en bas, pieds en haut
-        if avg_nose_y > avg_hip_y + 0.2 and avg_ankle_y < avg_nose_y:
-            logger.info("→ HANDSTAND détecté")
+        # ====================================================================
+        # HANDSTAND : DÉTECTION AMÉLIORÉE
+        # ====================================================================
+        # Dans MediaPipe: Y=0 en haut, Y=1 en bas
+        # Pour un handstand: pieds en haut (petit Y), tête en bas (grand Y)
+        
+        ankle_nose_diff = avg_nose_y - avg_ankle_y  # Devrait être positif pour handstand
+        logger.info(f"Différence verticale handstand (nose_y - ankle_y): {ankle_nose_diff:.3f}")
+        
+        # Conditions pour handstand:
+        # 1. Le nez est significativement plus bas que les chevilles (>0.15)
+        # 2. Le nez est plus bas que les hanches
+        # 3. Les poignets sont plus bas que tout le reste (contact au sol)
+        wrists_at_bottom = avg_wrist_y > avg_nose_y  # Les mains touchent le sol
+        
+        if ankle_nose_diff > 0.15 and avg_nose_y > avg_hip_y and wrists_at_bottom:
+            logger.info("→ HANDSTAND détecté (chevilles en haut, tête en bas, mains au sol)")
             return "handstand"
 
+        # ====================================================================
         # CORPS HORIZONTAL : Différencier FRONT LEVER vs PLANCHE
+        # ====================================================================
         y_difference = avg_hip_y - avg_nose_y
 
         logger.info(f"Différence verticale (hip_y - nose_y): {y_difference:.3f}")
@@ -858,7 +874,7 @@ def home():
     return jsonify({
         "status": "ok",
         "message": "API d'analyse de mouvement complète",
-        "version": "7.4 - Front Lever seuil hanches ajusté à 170°",
+        "version": "7.5 - Détection handstand corrigée",
         "endpoints": {
             "static": "/analyze_static",
             "video_dynamic": "/analyze_video_dynamic",
