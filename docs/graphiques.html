@@ -27,9 +27,6 @@
         <!-- Header Section -->
         <div class="graphs-header">
             <h1>Suivi de Performances</h1>
-            <button class="btn-add-record" id="btnAddRecord">
-                <span>+</span> Ajouter une performance
-            </button>
         </div>
 
         <!-- Stats Overview -->
@@ -89,64 +86,6 @@
             <div class="performance-details" id="performanceDetails"></div>
         </div>
     </main>
-
-    <!-- Modal Ajout Performance -->
-    <div class="modal" id="recordModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Ajouter une performance</h2>
-                <button class="btn-close" id="btnCloseModal">&times;</button>
-            </div>
-            
-            <form id="recordForm">
-                <div class="form-section">
-                    <div class="form-group">
-                        <label for="exerciseName">Exercice *</label>
-                        <input type="text" id="exerciseName" required placeholder="Ex: Tractions" list="exercisesList">
-                        <datalist id="exercisesList"></datalist>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="exerciseCategory">Catégorie *</label>
-                        <select id="exerciseCategory" required>
-                            <option value="">Sélectionner...</option>
-                            <option value="pull">Pull</option>
-                            <option value="push">Push</option>
-                            <option value="legs">Legs</option>
-                            <option value="skills">Skills</option>
-                        </select>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="recordReps">Répétitions *</label>
-                            <input type="number" id="recordReps" required min="1" placeholder="12">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="recordSets">Séries</label>
-                            <input type="number" id="recordSets" min="1" placeholder="4">
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="recordDate">Date *</label>
-                        <input type="date" id="recordDate" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="recordNotes">Notes (optionnel)</label>
-                        <textarea id="recordNotes" rows="3" placeholder="Ressenti, difficulté, observations..."></textarea>
-                    </div>
-                </div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn-cancel" id="btnCancelForm">Annuler</button>
-                    <button type="submit" class="btn-submit">Enregistrer</button>
-                </div>
-            </form>
-        </div>
-    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="graphiques.js"></script>

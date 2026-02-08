@@ -8,16 +8,12 @@ let currentFilter = 'all';
 // ================== INITIALISATION ==================
 document.addEventListener('DOMContentLoaded', () => {
     loadCompletedWorkouts();
-    cleanOrphanedWorkouts(); // NOUVEAU : Nettoyer les séances orphelines
+    cleanOrphanedWorkouts();
     generatePerformanceRecords();
     updateStats();
     renderExerciseList();
     
     // Event listeners
-    document.getElementById('btnAddRecord').addEventListener('click', openModal);
-    document.getElementById('btnCloseModal').addEventListener('click', closeModal);
-    document.getElementById('btnCancelForm').addEventListener('click', closeModal);
-    document.getElementById('recordForm').addEventListener('submit', handleFormSubmit);
     document.getElementById('timeRange').addEventListener('change', updateChart);
     
     // Filtres
@@ -29,14 +25,6 @@ document.addEventListener('DOMContentLoaded', () => {
             renderExerciseList();
         });
     });
-    
-    // Fermer modal en cliquant à l'extérieur
-    document.getElementById('recordModal').addEventListener('click', (e) => {
-        if (e.target.id === 'recordModal') closeModal();
-    });
-    
-    // Date par défaut
-    document.getElementById('recordDate').value = new Date().toISOString().split('T')[0];
     
     // Recharger les données quand la page devient visible
     document.addEventListener('visibilitychange', () => {
@@ -53,22 +41,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ================== NETTOYAGE DES DONNÉES ==================
 function cleanOrphanedWorkouts() {
-    // Charger les trainings existants
     const trainingsStored = localStorage.getItem('levelUpCaliTrainings');
     const trainings = trainingsStored ? JSON.parse(trainingsStored) : [];
     const validTrainingIds = new Set(trainings.map(t => t.id));
     
     console.log('Trainings valides:', Array.from(validTrainingIds));
     
-    // Filtrer les completedWorkouts pour ne garder que ceux liés à des trainings existants
     if (completedWorkouts.length > 0) {
         const originalCount = completedWorkouts.length;
         
-        // Garder les workouts qui ont un trainingId valide OU qui n'ont pas de trainingId (ajoutés manuellement)
         completedWorkouts = completedWorkouts.filter(workout => {
-            // Si pas de trainingId, c'est un workout manuel, on le garde
             if (!workout.trainingId) return true;
-            // Sinon, on vérifie que le training existe encore
             return validTrainingIds.has(workout.trainingId);
         });
         
@@ -76,27 +59,24 @@ function cleanOrphanedWorkouts() {
         
         if (removedCount > 0) {
             console.log(`Nettoyage: ${removedCount} séance(s) orpheline(s) supprimée(s)`);
-            // Sauvegarder les workouts nettoyés
             localStorage.setItem('levelUpCaliCompletedWorkouts', JSON.stringify(completedWorkouts));
         }
     }
 }
 
-// ================== NOUVELLE FONCTION DE RAFRAÎCHISSEMENT ==================
+// ================== RAFRAÎCHISSEMENT ==================
 function refreshData() {
     loadCompletedWorkouts();
-    cleanOrphanedWorkouts(); // Nettoyer à chaque refresh
+    cleanOrphanedWorkouts();
     generatePerformanceRecords();
     updateStats();
     renderExerciseList();
     
-    // Si on est en train de visualiser un graphique, le mettre à jour
     if (currentExercise) {
         const exerciseStillExists = performanceRecords.some(r => r.exercise === currentExercise);
         if (exerciseStillExists) {
             showExerciseGraph(currentExercise);
         } else {
-            // L'exercice n'existe plus, cacher le graphique
             document.getElementById('graphSection').style.display = 'none';
             currentExercise = null;
         }
@@ -114,7 +94,6 @@ function loadCompletedWorkouts() {
 }
 
 function generatePerformanceRecords() {
-    // Générer les performances depuis les entraînements complétés
     performanceRecords = [];
     
     completedWorkouts.forEach(workout => {
@@ -139,13 +118,6 @@ function generatePerformanceRecords() {
         }
     });
     
-    // Charger aussi les performances ajoutées manuellement
-    const manualRecords = localStorage.getItem('levelUpCaliManualPerformances');
-    if (manualRecords) {
-        const parsed = JSON.parse(manualRecords);
-        performanceRecords.push(...parsed);
-    }
-    
     console.log('Total performances chargées:', performanceRecords.length);
 }
 
@@ -154,7 +126,6 @@ function updateStats() {
     const totalRecords = performanceRecords.length;
     const uniqueExercises = [...new Set(performanceRecords.map(r => r.exercise))].length;
     
-    // Calculer la progression moyenne
     let totalProgress = 0;
     let progressCount = 0;
     
@@ -205,7 +176,6 @@ function renderExerciseList() {
     const container = document.getElementById('exerciseList');
     const exerciseGroups = groupByExercise(performanceRecords);
     
-    // Filtrer par catégorie
     let filteredGroups = exerciseGroups;
     if (currentFilter !== 'all') {
         filteredGroups = {};
@@ -219,9 +189,21 @@ function renderExerciseList() {
     
     if (Object.keys(filteredGroups).length === 0) {
         container.innerHTML = `
-            <div style="grid-column: 1 / -1; text-align: center; padding: 40px 20px; color: #b0b0b0;">
-                <p style="font-size: 16px; margin-bottom: 10px;">Aucune performance enregistrée</p>
-                <p style="font-size: 14px;">Complétez des entraînements pour voir vos graphiques ici</p>
+            <div class="empty-state">
+                <div class="empty-state-icon">📊</div>
+                <div class="empty-state-title">Aucune performance enregistrée</div>
+                <div class="empty-state-text">
+                    Pour visualiser vos graphiques de progression, vous devez d'abord compléter des entraînements.
+                </div>
+                <div class="empty-state-steps">
+                    <ol>
+                        <li>Allez dans l'onglet <strong>Planning</strong></li>
+                        <li>Créez ou sélectionnez un programme d'entraînement</li>
+                        <li>Dans l'onglet <strong>Entraînements</strong>, complétez une séance</li>
+                        <li>Cliquez sur <strong>Marquer comme effectué</strong></li>
+                        <li>Revenez ici pour voir vos graphiques de progression !</li>
+                    </ol>
+                </div>
             </div>
         `;
         return;
@@ -271,20 +253,12 @@ function formatHoldTime(seconds) {
 
 function parseReps(reps) {
     if (!reps) return 0;
-    
-    // Si c'est déjà un nombre
     if (typeof reps === 'number') return reps;
-    
-    // Convertir en string et nettoyer
     const repsStr = String(reps).trim();
-    
-    // Gérer les formats "8-12" - prendre la valeur max
     if (repsStr.includes('-')) {
         const parts = repsStr.split('-');
         return parseInt(parts[1]) || parseInt(parts[0]) || 0;
     }
-    
-    // Format simple "10"
     return parseInt(repsStr) || 0;
 }
 
@@ -298,7 +272,6 @@ function showExerciseGraph(exercise) {
     document.getElementById('graphTitle').textContent = `Progression - ${exercise}`;
     document.getElementById('graphSection').style.display = 'block';
     
-    // Scroll vers le graphique
     document.getElementById('graphSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
     
     updateChart();
@@ -313,7 +286,6 @@ function updateChart() {
         .filter(r => r.exercise === currentExercise)
         .sort((a, b) => new Date(a.date) - new Date(b.date));
     
-    // Filtrer par période
     if (timeRange !== 'all') {
         const daysAgo = parseInt(timeRange);
         const cutoffDate = new Date();
@@ -329,12 +301,10 @@ function updateChart() {
         ? records.map(r => r.holdTime || 0) 
         : records.map(r => parseReps(r.reps));
     
-    // Détruire l'ancien graphique
     if (currentChart) {
         currentChart.destroy();
     }
     
-    // Créer le nouveau graphique
     const ctx = document.getElementById('performanceChart').getContext('2d');
     
     currentChart = new Chart(ctx, {
@@ -432,7 +402,6 @@ function displayPerformanceDetails(records) {
         const recordDiv = document.createElement('div');
         recordDiv.className = 'performance-record';
         
-        // Calculer la progression par rapport au précédent
         let progressHtml = '';
         if (index < records.length - 1) {
             const prevRecord = records[index + 1];
@@ -491,50 +460,6 @@ function displayPerformanceDetails(records) {
         
         container.appendChild(recordDiv);
     });
-}
-
-// ================== MODAL ==================
-function openModal() {
-    document.getElementById('recordModal').classList.add('active');
-    document.getElementById('recordForm').reset();
-    document.getElementById('recordDate').value = new Date().toISOString().split('T')[0];
-}
-
-function closeModal() {
-    document.getElementById('recordModal').classList.remove('active');
-}
-
-function handleFormSubmit(e) {
-    e.preventDefault();
-    
-    let newRecord = {
-        id: Date.now(),
-        exercise: document.getElementById('exerciseName').value,
-        category: document.getElementById('exerciseCategory').value,
-        isStatic: false,
-        reps: parseInt(document.getElementById('recordReps').value),
-        sets: parseInt(document.getElementById('recordSets').value) || null,
-        date: document.getElementById('recordDate').value,
-        notes: document.getElementById('recordNotes').value
-    };
-    
-    // Sauvegarder dans les performances manuelles
-    const manualRecords = localStorage.getItem('levelUpCaliManualPerformances');
-    const records = manualRecords ? JSON.parse(manualRecords) : [];
-    records.push(newRecord);
-    localStorage.setItem('levelUpCaliManualPerformances', JSON.stringify(records));
-    
-    // Recharger tout
-    generatePerformanceRecords();
-    updateStats();
-    renderExerciseList();
-    
-    // Si on est sur le graphique du même exercice, le mettre à jour
-    if (currentExercise === newRecord.exercise) {
-        showExerciseGraph(currentExercise);
-    }
-    
-    closeModal();
 }
 
 // ================== UTILITAIRES ==================
