@@ -93,6 +93,11 @@ def adjust_brightness_auto(image):
     Version robuste compatible Render.
     """
     try:
+        # Validation de l'image d'entrée
+        if image is None or image.size == 0:
+            logger.error("Image invalide reçue dans adjust_brightness_auto")
+            return image
+            
         # Conversion en LAB pour analyser la luminosité
         lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
         l_channel, a, b = cv2.split(lab)
@@ -103,7 +108,7 @@ def adjust_brightness_auto(image):
         
         # Si l'image est trop lumineuse (surexposée au soleil)
         if mean_brightness > 180:
-            logger.info("Image surexposée - Correction en cours...")
+            logger.info("⚠️ Image surexposée - Correction en cours...")
             
             # Réduction de la luminosité proportionnelle
             target_brightness = 140  # Cible optimale pour MediaPipe
@@ -117,12 +122,12 @@ def adjust_brightness_auto(image):
             corrected_image = cv2.cvtColor(corrected_lab, cv2.COLOR_LAB2BGR)
             
             new_brightness = np.mean(cv2.split(cv2.cvtColor(corrected_image, cv2.COLOR_BGR2LAB))[0])
-            logger.info(f"Luminosité corrigée: {mean_brightness:.1f} → {new_brightness:.1f}")
+            logger.info(f"✅ Luminosité corrigée: {mean_brightness:.1f} → {new_brightness:.1f}")
             return corrected_image
         
         # Si l'image est trop sombre
         elif mean_brightness < 80:
-            logger.info("Image sous-exposée - Correction en cours...")
+            logger.info("⚠️ Image sous-exposée - Correction en cours...")
             
             # Augmentation de la luminosité
             target_brightness = 120
@@ -132,15 +137,16 @@ def adjust_brightness_auto(image):
             corrected_lab = cv2.merge([l_channel, a, b])
             corrected_image = cv2.cvtColor(corrected_lab, cv2.COLOR_LAB2BGR)
             
-            logger.info(f"Luminosité augmentée: {mean_brightness:.1f} → {target_brightness}")
+            new_brightness = np.mean(cv2.split(cv2.cvtColor(corrected_image, cv2.COLOR_BGR2LAB))[0])
+            logger.info(f"✅ Luminosité augmentée: {mean_brightness:.1f} → {new_brightness:.1f}")
             return corrected_image
         
         else:
-            logger.info("Luminosité correcte, aucune correction nécessaire")
+            logger.info("✅ Luminosité correcte, aucune correction nécessaire")
             return image
             
     except Exception as e:
-        logger.error(f"Erreur ajustement luminosité: {e}")
+        logger.error(f"❌ Erreur ajustement luminosité: {e}")
         # En cas d'erreur, retourner l'image originale
         return image
 
@@ -151,16 +157,24 @@ def enhance_image_for_detection(image):
     """
     Applique plusieurs améliorations pour optimiser la détection MediaPipe.
     Version adaptative : traitement complet en local, simplifié sur Render.
+    CORRECTION : S'assure que l'image traitée est toujours retournée.
     """
+    original_image = image.copy()  # Sauvegarde pour fallback
+    
     try:
         # 1. Ajustement de luminosité (TOUJOURS actif)
-        logger.info("Ajustement de la luminosité...")
+        logger.info("🔧 Ajustement de la luminosité...")
         image = adjust_brightness_auto(image)
+        
+        # Vérifier que l'image a bien été traitée
+        if image is None:
+            logger.warning("⚠️ adjust_brightness_auto a retourné None, utilisation image originale")
+            image = original_image
         
         # 2. Traitement avancé uniquement en local
         if not IS_RENDER:
             try:
-                logger.info("Traitement avancé activé (environnement local)")
+                logger.info("🔧 Traitement avancé activé (environnement local)")
                 
                 # Augmentation du contraste (CLAHE)
                 lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
@@ -173,18 +187,24 @@ def enhance_image_for_detection(image):
                 # Réduction du bruit
                 image = cv2.fastNlMeansDenoisingColored(image, None, 5, 5, 7, 21)
                 
-                logger.info("Traitement complet appliqué")
+                logger.info("✅ Traitement complet appliqué avec succès")
             except Exception as e:
-                logger.warning(f"Traitement avancé échoué (OK en production): {e}")
+                logger.warning(f"⚠️ Traitement avancé échoué, utilisation image après luminosité: {e}")
         else:
-            logger.info("Mode Render : traitement simplifié (ajustement luminosité uniquement)")
+            logger.info("✅ Mode Render : traitement luminosité appliqué avec succès")
         
+        # Vérification finale
+        if image is None or image.size == 0:
+            logger.error("❌ Image finale invalide, retour à l'originale")
+            return original_image
+            
+        logger.info(f"✅ Image finale: shape={image.shape}, dtype={image.dtype}")
         return image
         
     except Exception as e:
-        logger.error(f"Erreur lors de l'amélioration de l'image: {e}")
+        logger.error(f"❌ Erreur critique lors de l'amélioration de l'image: {e}")
         # Fallback : retourner l'image originale
-        return image
+        return original_image
 
 # ============================================================================
 # Fonctions pour les calculs
@@ -976,7 +996,7 @@ def home():
     return jsonify({
         "status": "ok",
         "message": "API d'analyse de mouvement complète",
-        "version": "8.0 - Correction auto luminosité ajoutée",
+        "version": "9.0 - Correction critique fonction enhance_image_for_detection",
         "endpoints": {
             "static": "/analyze_static",
             "video_dynamic": "/analyze_video_dynamic",
@@ -988,8 +1008,9 @@ def home():
         },
         "features": {
             "auto_brightness": "Ajustement automatique luminosité (images trop claires/sombres)",
-            "contrast_enhancement": "Amélioration automatique du contraste (CLAHE)",
-            "noise_reduction": "Réduction du bruit pour meilleure détection"
+            "contrast_enhancement": "Amélioration automatique du contraste (CLAHE) - local uniquement",
+            "noise_reduction": "Réduction du bruit pour meilleure détection - local uniquement",
+            "robust_fallback": "Gestion d'erreurs avec fallback sur image originale"
         },
         "timestamp": datetime.now().isoformat()
     })
