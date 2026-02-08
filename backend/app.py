@@ -90,7 +90,7 @@ static_skills = {
 def adjust_brightness_auto(image):
     """
     Ajuste automatiquement la luminosité de l'image pour améliorer la détection MediaPipe.
-    Détecte si l'image est surexposée (trop lumineuse) et la corrige.
+    Version robuste compatible Render.
     """
     try:
         # Conversion en LAB pour analyser la luminosité
@@ -99,11 +99,11 @@ def adjust_brightness_auto(image):
         
         # Analyse de la luminosité moyenne
         mean_brightness = np.mean(l_channel)
-        logger.info(f"Luminosité moyenne détectée: {mean_brightness:.1f}/255")
+        logger.info(f"💡 Luminosité détectée: {mean_brightness:.1f}/255")
         
         # Si l'image est trop lumineuse (surexposée au soleil)
         if mean_brightness > 180:
-            logger.info("Image surexposée détectée - Correction automatique...")
+            logger.info("Image surexposée - Correction en cours...")
             
             # Réduction de la luminosité proportionnelle
             target_brightness = 140  # Cible optimale pour MediaPipe
@@ -116,12 +116,13 @@ def adjust_brightness_auto(image):
             corrected_lab = cv2.merge([l_channel, a, b])
             corrected_image = cv2.cvtColor(corrected_lab, cv2.COLOR_LAB2BGR)
             
-            logger.info(f"✓ Luminosité corrigée: {mean_brightness:.1f} → {np.mean(l_channel):.1f}")
+            new_brightness = np.mean(cv2.split(cv2.cvtColor(corrected_image, cv2.COLOR_BGR2LAB))[0])
+            logger.info(f"Luminosité corrigée: {mean_brightness:.1f} → {new_brightness:.1f}")
             return corrected_image
         
         # Si l'image est trop sombre
         elif mean_brightness < 80:
-            logger.info("Image sous-exposée détectée - Correction automatique...")
+            logger.info("Image sous-exposée - Correction en cours...")
             
             # Augmentation de la luminosité
             target_brightness = 120
@@ -131,7 +132,7 @@ def adjust_brightness_auto(image):
             corrected_lab = cv2.merge([l_channel, a, b])
             corrected_image = cv2.cvtColor(corrected_lab, cv2.COLOR_LAB2BGR)
             
-            logger.info(f"Luminosité augmentée: {mean_brightness:.1f} → {np.mean(l_channel):.1f}")
+            logger.info(f"Luminosité augmentée: {mean_brightness:.1f} → {target_brightness}")
             return corrected_image
         
         else:
@@ -139,33 +140,50 @@ def adjust_brightness_auto(image):
             return image
             
     except Exception as e:
-        logger.error(f"Erreur lors de l'ajustement de luminosité: {e}")
+        logger.error(f"Erreur ajustement luminosité: {e}")
+        # En cas d'erreur, retourner l'image originale
         return image
+
+# Détection environnement Render
+IS_RENDER = os.environ.get("RENDER") is not None
 
 def enhance_image_for_detection(image):
     """
     Applique plusieurs améliorations pour optimiser la détection MediaPipe.
+    Version adaptative : traitement complet en local, simplifié sur Render.
     """
     try:
-        # 1. Ajustement automatique de la luminosité
+        # 1. Ajustement de luminosité (TOUJOURS actif)
+        logger.info("Ajustement de la luminosité...")
         image = adjust_brightness_auto(image)
         
-        # 2. Augmentation du contraste (CLAHE)
-        lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
-        l, a, b = cv2.split(lab)
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-        l = clahe.apply(l)
-        enhanced_lab = cv2.merge([l, a, b])
-        image = cv2.cvtColor(enhanced_lab, cv2.COLOR_LAB2BGR)
+        # 2. Traitement avancé uniquement en local
+        if not IS_RENDER:
+            try:
+                logger.info("Traitement avancé activé (environnement local)")
+                
+                # Augmentation du contraste (CLAHE)
+                lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+                l, a, b = cv2.split(lab)
+                clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+                l = clahe.apply(l)
+                enhanced_lab = cv2.merge([l, a, b])
+                image = cv2.cvtColor(enhanced_lab, cv2.COLOR_LAB2BGR)
+                
+                # Réduction du bruit
+                image = cv2.fastNlMeansDenoisingColored(image, None, 5, 5, 7, 21)
+                
+                logger.info("Traitement complet appliqué")
+            except Exception as e:
+                logger.warning(f"Traitement avancé échoué (OK en production): {e}")
+        else:
+            logger.info("Mode Render : traitement simplifié (ajustement luminosité uniquement)")
         
-        # 3. Réduction légère du bruit
-        image = cv2.fastNlMeansDenoisingColored(image, None, 5, 5, 7, 21)
-        
-        logger.info("✓ Image optimisée pour la détection")
         return image
         
     except Exception as e:
         logger.error(f"Erreur lors de l'amélioration de l'image: {e}")
+        # Fallback : retourner l'image originale
         return image
 
 # ============================================================================
