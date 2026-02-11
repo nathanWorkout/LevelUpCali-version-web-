@@ -78,9 +78,10 @@ static_skills = {
         "hip": {"min": 165, "max": 180}
     },
     "front_lever": {
-        "elbow": {"min": 165, "max": 180},
+        "elbow": {"min": 162, "max": 180},  # 165 - 3° tolérance biceps
         "shoulder": {"min": 30, "max": 60},
-        "hip": {"min": 170, "max": 180}  # Seuil plus strict pour détecter hanches basses
+        "hip": {"min": 167, "max": 180},     # 170 - 3° tolérance
+        "tolerance_biceps": 3  # Tolérance pour développement musculaire des biceps
     }
 }
 
@@ -90,7 +91,7 @@ static_skills = {
 def adjust_brightness_auto(image):
     """
     Ajuste automatiquement la luminosité de l'image pour améliorer la détection MediaPipe.
-    Version robuste compatible Render.
+    Version optimisée avec plage de luminosité élargie.
     """
     try:
         # Validation de l'image d'entrée
@@ -106,37 +107,27 @@ def adjust_brightness_auto(image):
         mean_brightness = np.mean(l_channel)
         logger.info(f"💡 Luminosité détectée: {mean_brightness:.1f}/255")
         
-        # Si l'image est trop lumineuse (surexposée au soleil)
-        if mean_brightness > 180:
+        # Plage optimale pour MediaPipe : 100-160
+        target_brightness = 130  # Cible optimale au milieu de la plage
+        
+        # Si l'image est trop lumineuse (surexposée au soleil ou intérieur très lumineux)
+        if mean_brightness > 160:
             logger.info("⚠️ Image surexposée - Correction en cours...")
-            
-            # Réduction de la luminosité proportionnelle
-            target_brightness = 140  # Cible optimale pour MediaPipe
             brightness_factor = target_brightness / mean_brightness
-            
-            # Application de la correction
             l_channel = np.clip(l_channel * brightness_factor, 0, 255).astype(np.uint8)
-            
-            # Reconstruction de l'image
             corrected_lab = cv2.merge([l_channel, a, b])
             corrected_image = cv2.cvtColor(corrected_lab, cv2.COLOR_LAB2BGR)
-            
             new_brightness = np.mean(cv2.split(cv2.cvtColor(corrected_image, cv2.COLOR_BGR2LAB))[0])
             logger.info(f"✅ Luminosité corrigée: {mean_brightness:.1f} → {new_brightness:.1f}")
             return corrected_image
         
         # Si l'image est trop sombre
-        elif mean_brightness < 80:
+        elif mean_brightness < 100:
             logger.info("⚠️ Image sous-exposée - Correction en cours...")
-            
-            # Augmentation de la luminosité
-            target_brightness = 120
             brightness_factor = target_brightness / mean_brightness
-            
             l_channel = np.clip(l_channel * brightness_factor, 0, 255).astype(np.uint8)
             corrected_lab = cv2.merge([l_channel, a, b])
             corrected_image = cv2.cvtColor(corrected_lab, cv2.COLOR_LAB2BGR)
-            
             new_brightness = np.mean(cv2.split(cv2.cvtColor(corrected_image, cv2.COLOR_BGR2LAB))[0])
             logger.info(f"✅ Luminosité augmentée: {mean_brightness:.1f} → {new_brightness:.1f}")
             return corrected_image
@@ -147,7 +138,6 @@ def adjust_brightness_auto(image):
             
     except Exception as e:
         logger.error(f"❌ Erreur ajustement luminosité: {e}")
-        # En cas d'erreur, retourner l'image originale
         return image
 
 # Détection environnement Render
@@ -156,42 +146,43 @@ IS_RENDER = os.environ.get("RENDER") is not None
 def enhance_image_for_detection(image):
     """
     Applique plusieurs améliorations pour optimiser la détection MediaPipe.
-    Version adaptative : traitement complet en local, simplifié sur Render.
-    CORRECTION : S'assure que l'image traitée est toujours retournée.
+    Version améliorée avec ajustement de contraste systématique.
     """
-    original_image = image.copy()  # Sauvegarde pour fallback
+    original_image = image.copy()
     
     try:
         # 1. Ajustement de luminosité (TOUJOURS actif)
         logger.info("🔧 Ajustement de la luminosité...")
         image = adjust_brightness_auto(image)
         
-        # Vérifier que l'image a bien été traitée
         if image is None:
             logger.warning("⚠️ adjust_brightness_auto a retourné None, utilisation image originale")
             image = original_image
         
-        # 2. Traitement avancé uniquement en local
+        # 2. Amélioration du contraste (TOUJOURS actif, même sur Render)
+        try:
+            logger.info("🔧 Amélioration du contraste...")
+            lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+            l, a, b = cv2.split(lab)
+            
+            # CLAHE avec paramètres optimisés pour tous les environnements
+            clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
+            l = clahe.apply(l)
+            
+            enhanced_lab = cv2.merge([l, a, b])
+            image = cv2.cvtColor(enhanced_lab, cv2.COLOR_LAB2BGR)
+            logger.info("✅ Contraste amélioré avec succès")
+        except Exception as e:
+            logger.warning(f"⚠️ Amélioration contraste échouée: {e}")
+        
+        # 3. Réduction du bruit (uniquement en local pour économiser ressources Render)
         if not IS_RENDER:
             try:
-                logger.info("🔧 Traitement avancé activé (environnement local)")
-                
-                # Augmentation du contraste (CLAHE)
-                lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
-                l, a, b = cv2.split(lab)
-                clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-                l = clahe.apply(l)
-                enhanced_lab = cv2.merge([l, a, b])
-                image = cv2.cvtColor(enhanced_lab, cv2.COLOR_LAB2BGR)
-                
-                # Réduction du bruit
+                logger.info("🔧 Réduction du bruit (local uniquement)...")
                 image = cv2.fastNlMeansDenoisingColored(image, None, 5, 5, 7, 21)
-                
-                logger.info("✅ Traitement complet appliqué avec succès")
+                logger.info("✅ Réduction du bruit appliquée")
             except Exception as e:
-                logger.warning(f"⚠️ Traitement avancé échoué, utilisation image après luminosité: {e}")
-        else:
-            logger.info("✅ Mode Render : traitement luminosité appliqué avec succès")
+                logger.warning(f"⚠️ Réduction bruit échouée: {e}")
         
         # Vérification finale
         if image is None or image.size == 0:
@@ -203,7 +194,6 @@ def enhance_image_for_detection(image):
         
     except Exception as e:
         logger.error(f"❌ Erreur critique lors de l'amélioration de l'image: {e}")
-        # Fallback : retourner l'image originale
         return original_image
 
 # ============================================================================
@@ -315,7 +305,7 @@ def get_error_landmarks(figure, deviations):
         if deviations.get("position_epaules") == "Oui":
             error_landmarks.extend(['LEFT_SHOULDER', 'RIGHT_SHOULDER'])
     
-    return list(set(error_landmarks))  # Supprimer les doublons
+    return list(set(error_landmarks))
 
 
 def draw_landmarks_with_errors(image, landmarks, error_landmarks=None):
@@ -554,19 +544,12 @@ def detect_static_figure(landmarks_sequence):
         logger.info(f"Détection X: wrist={avg_wrist_x:.3f}, shoulder={avg_shoulder_x:.3f}, hip={avg_hip_x:.3f}")
 
         # ====================================================================
-        # HANDSTAND : DÉTECTION AMÉLIORÉE
+        # HANDSTAND
         # ====================================================================
-        # Dans MediaPipe: Y=0 en haut, Y=1 en bas
-        # Pour un handstand: pieds en haut (petit Y), tête en bas (grand Y)
-        
-        ankle_nose_diff = avg_nose_y - avg_ankle_y  # Devrait être positif pour handstand
+        ankle_nose_diff = avg_nose_y - avg_ankle_y
         logger.info(f"Différence verticale handstand (nose_y - ankle_y): {ankle_nose_diff:.3f}")
         
-        # Conditions pour handstand:
-        # 1. Le nez est significativement plus bas que les chevilles (>0.15)
-        # 2. Le nez est plus bas que les hanches
-        # 3. Les poignets sont plus bas que tout le reste (contact au sol)
-        wrists_at_bottom = avg_wrist_y > avg_nose_y  # Les mains touchent le sol
+        wrists_at_bottom = avg_wrist_y > avg_nose_y
         
         if ankle_nose_diff > 0.15 and avg_nose_y > avg_hip_y and wrists_at_bottom:
             logger.info("→ HANDSTAND détecté (chevilles en haut, tête en bas, mains au sol)")
@@ -579,15 +562,12 @@ def detect_static_figure(landmarks_sequence):
 
         logger.info(f"Différence verticale (hip_y - nose_y): {y_difference:.3f}")
 
-        # Si le nez est significativement PLUS HAUT que les hanches = FRONT LEVER
         if y_difference > 0.10:
             logger.info("→ FRONT LEVER détecté (nez plus haut que hanches)")
             return "front_lever"
 
-        # Analyse fine pour corps quasi-horizontal
         if abs(y_difference) < 0.25:
 
-            # Critères de différenciation
             wrists_above_shoulders = avg_wrist_y < avg_shoulder_y + 0.05
             wrists_behind_shoulders_z = avg_wrist_z > avg_shoulder_z + 0.02
             nose_behind_hips_z = avg_nose_z > avg_hip_z + 0.05
@@ -785,30 +765,35 @@ def analyze_static_hold_unified(figure, angles_data, model):
             }
 
     # ========================================================================
-    # FRONT LEVER - AVEC PRIORISATION STRICTE
+    # FRONT LEVER - AVEC PRIORISATION STRICTE ET TOLÉRANCE BICEPS
     # ========================================================================
     elif figure == "front_lever":
-        # Détection de toutes les erreurs possibles
+        # Appliquer tolérance spécifique pour les biceps développés
+        biceps_tolerance = model.get("tolerance_biceps", 0)
+        logger.info(f"Tolérance biceps appliquée: {biceps_tolerance}°")
+        
+        # Détection de toutes les erreurs possibles avec tolérance
         hanches_basses = avg_left_hip < model["hip"]["min"] or avg_right_hip < model["hip"]["min"]
-        coudes_flechis = avg_left_elbow < model["elbow"]["min"] or avg_right_elbow < model["elbow"]["min"]
+        coudes_flechis = (avg_left_elbow < model["elbow"]["min"] - biceps_tolerance or 
+                          avg_right_elbow < model["elbow"]["min"] - biceps_tolerance)
         epaules_incorrectes = ((avg_left_shoulder < model["shoulder"]["min"] or avg_left_shoulder > model["shoulder"]["max"]) or
                               (avg_right_shoulder < model["shoulder"]["min"] or avg_right_shoulder > model["shoulder"]["max"]))
         
         logger.info(f"Détection erreurs: hanches_basses={hanches_basses}, coudes_flechis={coudes_flechis}, epaules={epaules_incorrectes}")
+        logger.info(f"Angles coudes après tolérance: left={avg_left_elbow:.1f}° (seuil={model['elbow']['min'] - biceps_tolerance:.1f}°), right={avg_right_elbow:.1f}° (seuil={model['elbow']['min'] - biceps_tolerance:.1f}°)")
         
         # Marquer toutes les erreurs détectées dans deviations
         if hanches_basses:
             deviations["hanches_basses"] = "Oui"
-            logger.info("✓ Hanches basses détectées")
+            logger.info("Hanches basses détectées")
         if coudes_flechis:
             deviations["coudes_flechis"] = "Oui"
-            logger.info("✓ Coudes fléchis détectés")
+            logger.info("Coudes fléchis détectés")
         if epaules_incorrectes:
             deviations["position_epaules"] = "Oui"
-            logger.info("✓ Épaules incorrectes détectées")
+            logger.info("Épaules incorrectes détectées")
         
-        # PRIORISATION STRICTE : Hanches > Coudes > Épaules
-        # On affiche la cause principale mais on garde toutes les erreurs dans deviations
+        # PRIORISATION : Hanches > Coudes > Épaules
         if hanches_basses:
             logger.info("→ PRIORITÉ: Hanches basses (cause principale)")
             primary_issue = {
@@ -817,16 +802,14 @@ def analyze_static_hold_unified(figure, angles_data, model):
                 "correction": "Renforce ton gainage : contracte abdos/fessiers en rétroversion + tire plus fort avec les épaules pour monter les hanches"
             }
         
-        # Si pas de problème de hanches mais coudes fléchis
         elif coudes_flechis:
             logger.info("→ PRIORITÉ: Coudes fléchis")
             primary_issue = {
                 "cause": "Bras fléchis pendant le front lever",
                 "compensation": "Perte de rétraction scapulaire et tension constante",
-                "correction": "Verrouille complètement les bras, tire uniquement avec les épaules et le dos"
+                "correction": "Tu as la force d'effectuer le front lever, il te manque la technique. Pour cela, il faut POUSSER la barre vers tes pieds en contractant les épaules et en gardant les bras tendus"
             }
         
-        # Si pas de problème de hanches ni de coudes mais épaules incorrectes
         elif epaules_incorrectes:
             logger.info("→ PRIORITÉ: Épaules incorrectes")
             primary_issue = {
@@ -836,7 +819,7 @@ def analyze_static_hold_unified(figure, angles_data, model):
             }
 
     # ========================================================================
-    # SI AUCUNE ERREUR DÉTECTÉE (pour toutes les figures)
+    # SI AUCUNE ERREUR DÉTECTÉE
     # ========================================================================
     if not primary_issue:
         primary_issue = {
@@ -996,7 +979,7 @@ def home():
     return jsonify({
         "status": "ok",
         "message": "API d'analyse de mouvement complète",
-        "version": "9.0 - Correction critique fonction enhance_image_for_detection",
+        "version": "10.1 - Preprocessing optimisé pour tous environnements lumineux",
         "endpoints": {
             "static": "/analyze_static",
             "video_dynamic": "/analyze_video_dynamic",
@@ -1007,10 +990,11 @@ def home():
             "dynamic": ["push_up", "pull_up", "dips"]
         },
         "features": {
-            "auto_brightness": "Ajustement automatique luminosité (images trop claires/sombres)",
-            "contrast_enhancement": "Amélioration automatique du contraste (CLAHE) - local uniquement",
-            "noise_reduction": "Réduction du bruit pour meilleure détection - local uniquement",
-            "robust_fallback": "Gestion d'erreurs avec fallback sur image originale"
+            "auto_brightness": "Ajustement automatique luminosité optimisé (plage 100-160)",
+            "contrast_enhancement": "Amélioration automatique du contraste (CLAHE) - tous environnements",
+            "noise_reduction": "Réduction du bruit - local uniquement",
+            "robust_fallback": "Gestion d'erreurs avec fallback sur image originale",
+            "biceps_tolerance": "Tolérance de 3° pour front lever (biceps développés)"
         },
         "timestamp": datetime.now().isoformat()
     })
