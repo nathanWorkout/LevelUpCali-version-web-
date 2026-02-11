@@ -91,7 +91,7 @@ static_skills = {
 def adjust_brightness_auto(image):
     """
     Ajuste automatiquement la luminosité de l'image pour améliorer la détection MediaPipe.
-    Version EXTRÊME - Réduit massivement la luminosité.
+    Version optimisée avec plage de luminosité élargie.
     """
     try:
         # Validation de l'image d'entrée
@@ -105,35 +105,39 @@ def adjust_brightness_auto(image):
         
         # Analyse de la luminosité moyenne
         mean_brightness = np.mean(l_channel)
-        logger.info(f" Luminosité détectée: {mean_brightness:.1f}/255")
+        logger.info(f"💡 Luminosité détectée: {mean_brightness:.1f}/255")
         
-        # CIBLE EXTRÊMEMENT BASSE : 60-70 (au lieu de 100)
-        target_brightness = 65
+        # Plage optimale pour MediaPipe : 100-160
+        target_brightness = 130  # Cible optimale au milieu de la plage
         
-        # RÉDUCTION MASSIVE pour TOUTES les images > 70
-        if mean_brightness > 70:
-            logger.info(f" Réduction EXTRÊME de la luminosité de {mean_brightness:.1f} vers {target_brightness}...")
-            
-            # Calculer le facteur de réduction
+        # Si l'image est trop lumineuse (surexposée au soleil ou intérieur très lumineux)
+        if mean_brightness > 160:
+            logger.info("⚠️ Image surexposée - Correction en cours...")
             brightness_factor = target_brightness / mean_brightness
-            
-            # Appliquer une réduction encore plus agressive
-            # Multiplier par un facteur supplémentaire de 0.75 pour vraiment assombrir
-            l_channel = np.clip(l_channel * brightness_factor * 0.75, 0, 255).astype(np.uint8)
-            
+            l_channel = np.clip(l_channel * brightness_factor, 0, 255).astype(np.uint8)
             corrected_lab = cv2.merge([l_channel, a, b])
             corrected_image = cv2.cvtColor(corrected_lab, cv2.COLOR_LAB2BGR)
             new_brightness = np.mean(cv2.split(cv2.cvtColor(corrected_image, cv2.COLOR_BGR2LAB))[0])
-            logger.info(f" Luminosité EXTRÊMEMENT réduite: {mean_brightness:.1f} → {new_brightness:.1f}")
+            logger.info(f"✅ Luminosité corrigée: {mean_brightness:.1f} → {new_brightness:.1f}")
             return corrected_image
         
-        # Si déjà sombre, laisser tel quel
+        # Si l'image est trop sombre
+        elif mean_brightness < 100:
+            logger.info("⚠️ Image sous-exposée - Correction en cours...")
+            brightness_factor = target_brightness / mean_brightness
+            l_channel = np.clip(l_channel * brightness_factor, 0, 255).astype(np.uint8)
+            corrected_lab = cv2.merge([l_channel, a, b])
+            corrected_image = cv2.cvtColor(corrected_lab, cv2.COLOR_LAB2BGR)
+            new_brightness = np.mean(cv2.split(cv2.cvtColor(corrected_image, cv2.COLOR_BGR2LAB))[0])
+            logger.info(f"✅ Luminosité augmentée: {mean_brightness:.1f} → {new_brightness:.1f}")
+            return corrected_image
+        
         else:
-            logger.info(" Image déjà très sombre, parfait pour MediaPipe")
+            logger.info("✅ Luminosité correcte, aucune correction nécessaire")
             return image
             
     except Exception as e:
-        logger.error(f" Erreur ajustement luminosité: {e}")
+        logger.error(f"❌ Erreur ajustement luminosité: {e}")
         return image
 
 # Détection environnement Render
@@ -176,42 +180,42 @@ def auto_rotate_image(image):
                 
                 # Choisir la meilleure orientation
                 if conf_90 > conf_orig and conf_90 > conf_270:
-                    logger.info("Rotation 90° appliquée")
+                    logger.info("✅ Rotation 90° appliquée")
                     return rotated_90
                 elif conf_270 > conf_orig and conf_270 > conf_90:
-                    logger.info("Rotation 270° appliquée")
+                    logger.info("✅ Rotation 270° appliquée")
                     return rotated_270
                     
         return image
         
     except Exception as e:
-        logger.warning(f"Auto-rotation échouée: {e}")
+        logger.warning(f"⚠️ Auto-rotation échouée: {e}")
         return image
 
 
 def enhance_image_for_detection(image):
     """
     Applique plusieurs améliorations pour optimiser la détection MediaPipe.
-    Version EXTRÊME - Assombrissement massif.
+    Version améliorée avec rotation automatique et contraste renforcé.
     """
     original_image = image.copy()
     
     try:
         # 0. Rotation automatique si nécessaire
-        logger.info(" Vérification orientation...")
+        logger.info("🔧 Vérification orientation...")
         image = auto_rotate_image(image)
         
-        # 1. Ajustement de luminosité EXTRÊME (TOUJOURS actif)
-        logger.info("Ajustement EXTRÊME de la luminosité...")
+        # 1. Ajustement de luminosité (TOUJOURS actif)
+        logger.info("🔧 Ajustement de la luminosité...")
         image = adjust_brightness_auto(image)
         
         if image is None:
-            logger.warning("adjust_brightness_auto a retourné None, utilisation image originale")
+            logger.warning("⚠️ adjust_brightness_auto a retourné None, utilisation image originale")
             image = original_image
         
-        # 2. Amélioration du contraste MAXIMALE (TOUJOURS actif)
+        # 2. Amélioration du contraste RENFORCÉE (TOUJOURS actif)
         try:
-            logger.info("Amélioration MAXIMALE du contraste...")
+            logger.info("🔧 Amélioration du contraste...")
             lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
             l, a, b = cv2.split(lab)
             
@@ -219,53 +223,44 @@ def enhance_image_for_detection(image):
             contrast = np.std(l)
             logger.info(f"Contraste actuel: {contrast:.1f}")
             
-            # Renforcement maximal du contraste pour toutes les images
+            # Si contraste faible (fond clair + vêtements clairs), renforcer
             if contrast < 30:
-                logger.info("Contraste très faible - CLAHE ultra-agressif...")
-                clahe = cv2.createCLAHE(clipLimit=5.0, tileGridSize=(4, 4))
+                logger.info("⚠️ Contraste très faible détecté, renforcement maximal...")
+                clahe = cv2.createCLAHE(clipLimit=4.0, tileGridSize=(4, 4))
             else:
-                logger.info("Contraste normal - CLAHE agressif...")
-                clahe = cv2.createCLAHE(clipLimit=3.5, tileGridSize=(8, 8))
+                clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
             
             l = clahe.apply(l)
             
-            # Augmenter davantage la saturation des couleurs
-            a = cv2.convertScaleAbs(a, alpha=1.2, beta=0)
-            b = cv2.convertScaleAbs(b, alpha=1.2, beta=0)
+            # Augmenter légèrement la saturation des couleurs pour aider la détection
+            a = cv2.convertScaleAbs(a, alpha=1.1, beta=0)
+            b = cv2.convertScaleAbs(b, alpha=1.1, beta=0)
             
             enhanced_lab = cv2.merge([l, a, b])
             image = cv2.cvtColor(enhanced_lab, cv2.COLOR_LAB2BGR)
-            logger.info("Contraste MAXIMISÉ avec succès")
+            logger.info("✅ Contraste amélioré avec succès")
         except Exception as e:
-            logger.warning(f"Amélioration contraste échouée: {e}")
+            logger.warning(f"⚠️ Amélioration contraste échouée: {e}")
         
         # 3. Réduction du bruit (uniquement en local)
         if not IS_RENDER:
             try:
-                logger.info("Réduction du bruit (local uniquement)...")
+                logger.info("🔧 Réduction du bruit (local uniquement)...")
                 image = cv2.fastNlMeansDenoisingColored(image, None, 5, 5, 7, 21)
-                logger.info("Réduction du bruit appliquée")
+                logger.info("✅ Réduction du bruit appliquée")
             except Exception as e:
-                logger.warning(f"Réduction bruit échouée: {e}")
+                logger.warning(f"⚠️ Réduction bruit échouée: {e}")
         
         # Vérification finale
         if image is None or image.size == 0:
-            logger.error("Image finale invalide, retour à l'originale")
+            logger.error("❌ Image finale invalide, retour à l'originale")
             return original_image
             
-        # Log de la luminosité finale
-        try:
-            final_lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
-            final_brightness = np.mean(cv2.split(final_lab)[0])
-            logger.info(f"Luminosité FINALE pour MediaPipe: {final_brightness:.1f}/255")
-        except:
-            pass
-            
-        logger.info(f"Image finale: shape={image.shape}, dtype={image.dtype}")
+        logger.info(f"✅ Image finale: shape={image.shape}, dtype={image.dtype}")
         return image
         
     except Exception as e:
-        logger.error(f"Erreur critique lors de l'amélioration de l'image: {e}")
+        logger.error(f"❌ Erreur critique lors de l'amélioration de l'image: {e}")
         return original_image
 
 # ============================================================================
@@ -897,7 +892,7 @@ def analyze_static_hold_unified(figure, angles_data, model):
         primary_issue = {
             "cause": "Maintien correct de la figure",
             "compensation": "Aucune",
-            "correction": "Excellente tenue ! Continue comme ça "
+            "correction": "Excellente tenue ! Continue comme ça 💪"
         }
 
     logger.info(f"Déviations finales: {deviations}")
@@ -1051,7 +1046,7 @@ def home():
     return jsonify({
         "status": "ok",
         "message": "API d'analyse de mouvement complète",
-        "version": "10.6 - Assombrissement EXTRÊME (cible 65 avec facteur 0.75)",
+        "version": "10.2 - Auto-rotation + Contraste adaptatif pour faible contraste",
         "endpoints": {
             "static": "/analyze_static",
             "video_dynamic": "/analyze_video_dynamic",
@@ -1062,21 +1057,13 @@ def home():
             "dynamic": ["push_up", "pull_up", "dips"]
         },
         "features": {
-            "dual_image_processing": "Image prétraitée pour détection, image originale pour affichage",
-            "extreme_darkening": "Assombrissement EXTRÊME - Cible 65 (au lieu de 100) avec facteur 0.75",
-            "simple_strategy": "Si luminosité > 70 → réduction massive vers 65",
             "auto_rotation": "Rotation automatique portrait → paysage si meilleure détection",
-            "max_contrast": "Contraste MAXIMISÉ (CLAHE 5.0 pour faible contraste, 3.5 sinon)",
-            "boosted_saturation": "Saturation augmentée à 1.2",
+            "auto_brightness": "Ajustement automatique luminosité optimisé (plage 100-160)",
+            "adaptive_contrast": "Contraste adaptatif selon analyse (CLAHE 4.0 si <30, 2.5 sinon)",
+            "color_saturation": "Augmentation saturation couleurs pour améliorer détection",
             "noise_reduction": "Réduction du bruit - local uniquement",
-            "detailed_logging": "Logs détaillés du décodage et traitement d'image",
             "robust_fallback": "Gestion d'erreurs avec fallback sur image originale",
             "biceps_tolerance": "Tolérance de 3° pour front lever (biceps développés)"
-        },
-        "brightness_strategy": {
-            "target": "65/255 (TRÈS SOMBRE)",
-            "action": "Si > 70 → multiplication par (65/luminosité) × 0.75",
-            "example": "Image à 200 → (65/200) × 0.75 = 0.24 → luminosité finale ~48"
         },
         "timestamp": datetime.now().isoformat()
     })
@@ -1093,83 +1080,34 @@ def analyze_static():
         image_base64 = data.get("image_base64")
 
         if not image_base64:
-            logger.error("Aucune image dans la requête")
             return jsonify({"status": "error", "message": "Aucune image reçue"}), 400
-
-        logger.info(f"Image base64 reçue - Longueur: {len(image_base64)} caractères")
-        logger.info(f" Premiers caractères: {image_base64[:100]}...")
 
         # Décodage
         try:
-            # Nettoyer le base64 (enlever les éventuels préfixes data:image)
-            if ',' in image_base64:
-                logger.info("🔧 Détection préfixe data:image, extraction du base64 pur...")
-                image_base64 = image_base64.split(',')[1]
-                logger.info(f"Base64 nettoyé - Longueur: {len(image_base64)}")
-            
-            # Ajouter du padding si nécessaire
-            missing_padding = len(image_base64) % 4
-            if missing_padding:
-                logger.info(f"🔧 Ajout de {4 - missing_padding} caractères de padding")
-                image_base64 += '=' * (4 - missing_padding)
-            
-            logger.info("🔧 Décodage base64...")
             image_bytes = base64.b64decode(image_base64)
-            logger.info(f"Base64 décodé - {len(image_bytes)} bytes")
-            
-            logger.info("🔧 Conversion en array numpy...")
             nparr = np.frombuffer(image_bytes, np.uint8)
-            logger.info(f"Array numpy créé - shape: {nparr.shape}, dtype: {nparr.dtype}")
-            
-            logger.info("🔧 Décodage de l'image avec OpenCV...")
-            original_image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-            if original_image is None:
-                logger.error("cv2.imdecode a retourné None")
-                logger.error(f"   - Taille du buffer: {len(image_bytes)} bytes")
-                logger.error(f"   - Premiers bytes: {image_bytes[:20]}")
-                return jsonify({
-                    "status": "error", 
-                    "message": "Image invalide - Impossible de décoder l'image. Formats supportés: JPG, PNG",
-                    "debug": {
-                        "buffer_size": len(image_bytes),
-                        "base64_length": len(image_base64)
-                    }
-                }), 400
-            
-            logger.info(f"Image décodée - shape: {original_image.shape}, dtype: {original_image.dtype}")
-            
-        except base64.binascii.Error as e:
-            logger.error(f"Erreur décodage base64: {e}")
-            return jsonify({
-                "status": "error", 
-                "message": f"Erreur décodage base64: {str(e)}",
-                "debug": "Le format base64 est invalide"
-            }), 400
+            if image is None:
+                return jsonify({"status": "error", "message": "Image invalide"}), 400
         except Exception as e:
-            logger.error(f"Erreur décodage: {e}", exc_info=True)
-            return jsonify({
-                "status": "error", 
-                "message": f"Erreur décodage: {str(e)}",
-                "debug": f"Type d'erreur: {type(e).__name__}"
-            }), 400
+            return jsonify({"status": "error", "message": f"Erreur décodage: {str(e)}"}), 400
 
         # ========================================================================
-        # PRÉTRAITEMENT AUTOMATIQUE DE L'IMAGE (pour MediaPipe uniquement)
+        # PRÉTRAITEMENT AUTOMATIQUE DE L'IMAGE
         # ========================================================================
-        logger.info("📸 Prétraitement de l'image pour MediaPipe...")
-        preprocessed_image = enhance_image_for_detection(original_image.copy())
+        logger.info("📸 Prétraitement de l'image...")
+        image = enhance_image_for_detection(image)
 
-        # Analyse Mediapipe sur l'image PRÉTRAITÉE
-        logger.info("Lancement de MediaPipe Pose...")
+        # Analyse Mediapipe
         with mp_pose.Pose(static_image_mode=True, min_detection_confidence=0.5) as pose:
-            preprocessed_rgb = cv2.cvtColor(preprocessed_image, cv2.COLOR_BGR2RGB)
-            preprocessed_rgb.flags.writeable = False
-            results = pose.process(preprocessed_rgb)
-            preprocessed_rgb.flags.writeable = True
+            image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            image.flags.writeable = False
+            results = pose.process(image_rgb)
+            image.flags.writeable = True
 
             if not results.pose_landmarks:
-                logger.warning("Aucun corps détecté après prétraitement")
+                logger.warning("⚠️ Aucun corps détecté après prétraitement")
                 return jsonify({
                     "status": "error",
                     "message": "Aucun corps détecté. Assure-toi d'être bien visible et que tout ton corps est dans le cadre.",
@@ -1178,7 +1116,7 @@ def analyze_static():
 
             logger.info("✓ Corps détecté avec succès")
 
-            user_angles = calculate_user_angles(results.pose_landmarks, preprocessed_rgb.shape)
+            user_angles = calculate_user_angles(results.pose_landmarks, image_rgb.shape)
 
             # Détection figure statique
             figure = detect_static_figure([results.pose_landmarks])
@@ -1196,20 +1134,17 @@ def analyze_static():
                     "deviations": {}
                 }
 
-            # Dessiner les landmarks avec erreurs en ROUGE sur l'IMAGE ORIGINALE
+            # Dessiner les landmarks avec erreurs en ROUGE
             error_landmarks = get_error_landmarks(figure, analysis.get("deviations", {}))
             logger.info(f"Landmarks en erreur: {error_landmarks}")
             
-            # Utiliser l'image ORIGINALE pour l'annotation et l'affichage
-            logger.info("Annotation de l'image originale (luminosité non modifiée)...")
-            original_image_copy = original_image.copy()
-            draw_landmarks_with_errors(original_image_copy, results.pose_landmarks, error_landmarks)
+            # Conversion BGR pour annotation
+            image_bgr = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
+            draw_landmarks_with_errors(image_bgr, results.pose_landmarks, error_landmarks)
 
-            # Encoder l'image ORIGINALE annotée
-            logger.info("Encodage de l'image annotée en JPEG...")
-            _, buffer = cv2.imencode('.jpg', original_image_copy, [cv2.IMWRITE_JPEG_QUALITY, 90])
+            # Encoder l'image annotée
+            _, buffer = cv2.imencode('.jpg', image_bgr)
             image_base64_out = base64.b64encode(buffer).decode('utf-8')
-            logger.info(f"Image encodée - {len(image_base64_out)} caractères")
 
             return jsonify({
                 "status": "ok",
@@ -1229,11 +1164,7 @@ def analyze_static():
 
     except Exception as e:
         logger.error(f"Erreur dans analyze_static: {e}", exc_info=True)
-        return jsonify({
-            "status": "error", 
-            "message": f"Erreur serveur: {str(e)}",
-            "error_type": type(e).__name__
-        }), 500
+        return jsonify({"status": "error", "message": f"Erreur serveur: {str(e)}"}), 500
 
 
 @app.errorhandler(404)
