@@ -143,68 +143,14 @@ def adjust_brightness_auto(image):
 # Détection environnement Render
 IS_RENDER = os.environ.get("RENDER") is not None
 
-def auto_rotate_image(image):
-    """
-    Détecte et corrige l'orientation de l'image si le corps est horizontal.
-    """
-    try:
-        h, w = image.shape[:2]
-        
-        # Si l'image est clairement en portrait (hauteur > largeur)
-        # et que le mouvement détecté est horizontal, on peut la faire pivoter
-        if h > w * 1.2:  # Image en mode portrait
-            logger.info(f"📱 Image portrait détectée ({w}x{h}), test de rotation...")
-            
-            # Essayer une rotation de 90° dans les deux sens
-            rotated_90 = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
-            rotated_270 = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
-            
-            # Tester quelle rotation détecte le mieux le corps
-            with mp_pose.Pose(static_image_mode=True, min_detection_confidence=0.3) as pose:
-                # Test image originale
-                rgb_orig = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-                result_orig = pose.process(rgb_orig)
-                conf_orig = result_orig.pose_landmarks.landmark[0].visibility if result_orig.pose_landmarks else 0
-                
-                # Test rotation 90°
-                rgb_90 = cv2.cvtColor(rotated_90, cv2.COLOR_BGR2RGB)
-                result_90 = pose.process(rgb_90)
-                conf_90 = result_90.pose_landmarks.landmark[0].visibility if result_90.pose_landmarks else 0
-                
-                # Test rotation 270°
-                rgb_270 = cv2.cvtColor(rotated_270, cv2.COLOR_BGR2RGB)
-                result_270 = pose.process(rgb_270)
-                conf_270 = result_270.pose_landmarks.landmark[0].visibility if result_270.pose_landmarks else 0
-                
-                logger.info(f"Confiances: orig={conf_orig:.2f}, 90°={conf_90:.2f}, 270°={conf_270:.2f}")
-                
-                # Choisir la meilleure orientation
-                if conf_90 > conf_orig and conf_90 > conf_270:
-                    logger.info("✅ Rotation 90° appliquée")
-                    return rotated_90
-                elif conf_270 > conf_orig and conf_270 > conf_90:
-                    logger.info("✅ Rotation 270° appliquée")
-                    return rotated_270
-                    
-        return image
-        
-    except Exception as e:
-        logger.warning(f"⚠️ Auto-rotation échouée: {e}")
-        return image
-
-
 def enhance_image_for_detection(image):
     """
     Applique plusieurs améliorations pour optimiser la détection MediaPipe.
-    Version améliorée avec rotation automatique et contraste renforcé.
+    Version améliorée avec ajustement de contraste systématique.
     """
     original_image = image.copy()
     
     try:
-        # 0. Rotation automatique si nécessaire
-        logger.info("🔧 Vérification orientation...")
-        image = auto_rotate_image(image)
-        
         # 1. Ajustement de luminosité (TOUJOURS actif)
         logger.info("🔧 Ajustement de la luminosité...")
         image = adjust_brightness_auto(image)
@@ -213,28 +159,15 @@ def enhance_image_for_detection(image):
             logger.warning("⚠️ adjust_brightness_auto a retourné None, utilisation image originale")
             image = original_image
         
-        # 2. Amélioration du contraste RENFORCÉE (TOUJOURS actif)
+        # 2. Amélioration du contraste (TOUJOURS actif, même sur Render)
         try:
             logger.info("🔧 Amélioration du contraste...")
             lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
             l, a, b = cv2.split(lab)
             
-            # Analyser le contraste de l'image
-            contrast = np.std(l)
-            logger.info(f"Contraste actuel: {contrast:.1f}")
-            
-            # Si contraste faible (fond clair + vêtements clairs), renforcer
-            if contrast < 30:
-                logger.info("⚠️ Contraste très faible détecté, renforcement maximal...")
-                clahe = cv2.createCLAHE(clipLimit=4.0, tileGridSize=(4, 4))
-            else:
-                clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
-            
+            # CLAHE avec paramètres optimisés pour tous les environnements
+            clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
             l = clahe.apply(l)
-            
-            # Augmenter légèrement la saturation des couleurs pour aider la détection
-            a = cv2.convertScaleAbs(a, alpha=1.1, beta=0)
-            b = cv2.convertScaleAbs(b, alpha=1.1, beta=0)
             
             enhanced_lab = cv2.merge([l, a, b])
             image = cv2.cvtColor(enhanced_lab, cv2.COLOR_LAB2BGR)
@@ -242,7 +175,7 @@ def enhance_image_for_detection(image):
         except Exception as e:
             logger.warning(f"⚠️ Amélioration contraste échouée: {e}")
         
-        # 3. Réduction du bruit (uniquement en local)
+        # 3. Réduction du bruit (uniquement en local pour économiser ressources Render)
         if not IS_RENDER:
             try:
                 logger.info("🔧 Réduction du bruit (local uniquement)...")
@@ -1046,7 +979,7 @@ def home():
     return jsonify({
         "status": "ok",
         "message": "API d'analyse de mouvement complète",
-        "version": "10.2 - Auto-rotation + Contraste adaptatif pour faible contraste",
+        "version": "10.1 - Preprocessing optimisé pour tous environnements lumineux",
         "endpoints": {
             "static": "/analyze_static",
             "video_dynamic": "/analyze_video_dynamic",
@@ -1057,10 +990,8 @@ def home():
             "dynamic": ["push_up", "pull_up", "dips"]
         },
         "features": {
-            "auto_rotation": "Rotation automatique portrait → paysage si meilleure détection",
             "auto_brightness": "Ajustement automatique luminosité optimisé (plage 100-160)",
-            "adaptive_contrast": "Contraste adaptatif selon analyse (CLAHE 4.0 si <30, 2.5 sinon)",
-            "color_saturation": "Augmentation saturation couleurs pour améliorer détection",
+            "contrast_enhancement": "Amélioration automatique du contraste (CLAHE) - tous environnements",
             "noise_reduction": "Réduction du bruit - local uniquement",
             "robust_fallback": "Gestion d'erreurs avec fallback sur image originale",
             "biceps_tolerance": "Tolérance de 3° pour front lever (biceps développés)"
