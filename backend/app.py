@@ -288,7 +288,7 @@ def analyze_figure(figure, angles, model):
         issue = {
             "cause": "Maintien correct de la figure",
             "compensation": "Aucune",
-            "correction": "Excellente tenue ! Continue comme ça 💪"
+            "correction": "Excellente tenue ! Continue comme ça "
         }
     
     logger.info(f"Analyse {figure}: {issue['cause']}")
@@ -428,7 +428,7 @@ def analyze_static():
                     "detected_figure": "none"
                 }), 400
             
-            logger.info("✓ Corps détecté")
+            logger.info("Corps détecté")
             
             # ================================================================
             # 5. CALCULS

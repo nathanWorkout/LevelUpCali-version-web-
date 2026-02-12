@@ -40,7 +40,7 @@ function init() {
     elements.analyzeImageBtn.addEventListener('click', analyzeImage);
     elements.newAnalysisBtn.addEventListener('click', startNewAnalysis);
     
-    console.log('✅ App initialisée - Envoi fichier RAW');
+    console.log('App initialisée - Envoi fichier RAW');
 }
 
 // ============================================================================
@@ -131,7 +131,7 @@ async function analyzeImage() {
             showError(data.message || 'Erreur lors de l\'analyse');
         }
     } catch (error) {
-        console.error('❌ Erreur:', error);
+        console.error('Erreur:', error);
         showError('Erreur lors de l\'analyse. Vérifie que le serveur est accessible.');
     } finally {
         setLoading(elements.analyzeImageBtn, false);
@@ -233,6 +233,6 @@ function showError(message) {
 // START
 // ============================================================================
 document.addEventListener('DOMContentLoaded', init);
-console.log('🎯 LevelUpCali v13.0 - Optimisé Web');
-console.log('📡 API:', API_URL);
-console.log('⚡ Flux: Navigateur → Fichier RAW → Flask → NumPy → MediaPipe');
+console.log('LevelUpCali v13.0 - Optimisé Web');
+console.log('API:', API_URL);
+console.log('Flux: Navigateur → Fichier RAW → Flask → NumPy → MediaPipe');
