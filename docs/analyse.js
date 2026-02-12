@@ -8,21 +8,17 @@ let state = {
     isProcessing: false
 };
 
-// Elements (cache DOM)
+// Elements
 const elements = {
-    // Image
     imageInput: document.getElementById('image-input'),
     imageUploadZone: document.getElementById('image-upload-zone'),
     imagePreview: document.getElementById('image-preview'),
     imagePreviewImg: document.getElementById('image-preview-img'),
     removeImageBtn: document.getElementById('remove-image'),
     analyzeImageBtn: document.getElementById('analyze-image-btn'),
-    
-    // Results
     resultsSection: document.getElementById('results-section'),
     resultImage: document.getElementById('result-image'),
     figureBadge: document.getElementById('figure-badge'),
-    statsChips: document.getElementById('stats-chips'),
     causeText: document.getElementById('cause-text'),
     compensationText: document.getElementById('compensation-text'),
     correctionText: document.getElementById('correction-text'),
@@ -32,10 +28,9 @@ const elements = {
 };
 
 // ============================================================================
-// INITIALIZATION
+// INIT
 // ============================================================================
 function init() {
-    // Image handlers
     elements.imageUploadZone.addEventListener('click', () => elements.imageInput.click());
     elements.imageUploadZone.addEventListener('dragover', handleDragOver);
     elements.imageUploadZone.addEventListener('dragleave', handleDragLeave);
@@ -43,11 +38,9 @@ function init() {
     elements.imageInput.addEventListener('change', (e) => handleFileSelect(e.target.files[0]));
     elements.removeImageBtn.addEventListener('click', resetUploadState);
     elements.analyzeImageBtn.addEventListener('click', analyzeImage);
-    
-    // New analysis
     elements.newAnalysisBtn.addEventListener('click', startNewAnalysis);
     
-    console.log('App initialisée - Analyse image uniquement');
+    console.log('✅ App initialisée - Envoi fichier RAW');
 }
 
 // ============================================================================
@@ -77,17 +70,19 @@ function handleDrop(e) {
 function handleFileSelect(file) {
     if (!file) return;
     
-    console.log(`Fichier: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
-    
     // Validation
-    const validation = validateFile(file);
-    if (!validation.valid) {
-        showError(validation.error);
+    if (!file.type.match('image/jpeg') && !file.type.match('image/png')) {
+        showError('Format invalide. Utilise JPG ou PNG.');
+        return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+        showError('Fichier trop volumineux (max 10MB).');
         return;
     }
     
     state.currentFile = file;
     
+    // Preview
     const reader = new FileReader();
     reader.onload = (e) => {
         elements.imagePreviewImg.src = e.target.result;
@@ -98,23 +93,8 @@ function handleFileSelect(file) {
     reader.readAsDataURL(file);
 }
 
-function validateFile(file) {
-    const validImageTypes = ['image/jpeg', 'image/png', 'image/jpg'];
-    
-    if (!validImageTypes.includes(file.type)) {
-        return { valid: false, error: 'Format invalide. Utilise JPG ou PNG.' };
-    }
-    if (file.size > 10 * 1024 * 1024) {
-        return { valid: false, error: 'Fichier trop volumineux (max 10MB).' };
-    }
-    
-    return { valid: true };
-}
-
 function resetUploadState() {
     state.currentFile = null;
-    
-    // Image
     elements.imageInput.value = '';
     elements.imagePreviewImg.src = '';
     elements.imageUploadZone.style.display = 'block';
@@ -123,29 +103,27 @@ function resetUploadState() {
 }
 
 // ============================================================================
-// ANALYSIS
+// ANALYSIS - ENVOI FICHIER RAW
 // ============================================================================
 async function analyzeImage() {
     if (!state.currentFile || state.isProcessing) return;
     
-    console.log('🔍 Analyse image...');
+    console.log('🚀 Analyse image (fichier brut)...');
     
     setLoading(elements.analyzeImageBtn, true);
     state.isProcessing = true;
     
     try {
-        const base64 = await fileToBase64(state.currentFile);
-        const base64Data = base64.split(',')[1];
+        // FormData avec fichier brut
+        const formData = new FormData();
+        formData.append('image', state.currentFile);
         
         const response = await fetch(`${API_URL}/analyze_static`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image_base64: base64Data })
+            body: formData  // Pas de Content-Type header, laisse le navigateur gérer
         });
         
         const data = await response.json();
-        
-        console.log('Réponse serveur:', data);
         
         if (data.status === 'ok') {
             displayResults(data);
@@ -153,7 +131,7 @@ async function analyzeImage() {
             showError(data.message || 'Erreur lors de l\'analyse');
         }
     } catch (error) {
-        console.error('Erreur:', error);
+        console.error('❌ Erreur:', error);
         showError('Erreur lors de l\'analyse. Vérifie que le serveur est accessible.');
     } finally {
         setLoading(elements.analyzeImageBtn, false);
@@ -162,35 +140,24 @@ async function analyzeImage() {
 }
 
 // ============================================================================
-// RESULTS DISPLAY
+// RESULTS
 // ============================================================================
 function displayResults(data) {
-    console.log('Affichage résultats:', data.detected_figure);
-    
-    // Show section
     elements.resultsSection.style.display = 'block';
     
-    // Media - Image avec landmarks
+    // Image annotée
     if (data.image_base64) {
         elements.resultImage.src = `data:image/jpeg;base64,${data.image_base64}`;
         elements.resultImage.style.display = 'block';
-        console.log('Image avec landmarks affichée');
     }
     
-    // Figure badge avec traduction
+    // Figure
     const figureNames = {
         'handstand': 'Handstand',
         'planche': 'Planche',
-        'front_lever': 'Front Lever',
-        'push_up': 'Push-up',
-        'pull_up': 'Pull-up',
-        'dips': 'Dips'
+        'front_lever': 'Front Lever'
     };
-    
     elements.figureBadge.textContent = figureNames[data.detected_figure] || data.detected_figure;
-    
-    // Stats (pas de stats pour image statique, mais on garde pour compatibilité)
-    elements.statsChips.innerHTML = '';
     
     // Analysis
     if (data.analysis) {
@@ -206,7 +173,6 @@ function displayResults(data) {
         elements.deviationsSection.style.display = 'none';
     }
     
-    // Scroll
     setTimeout(() => {
         elements.resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
@@ -221,12 +187,7 @@ function displayDeviations(deviations) {
         'coudes_flechis': 'Coudes fléchis',
         'genoux_flechis': 'Genoux fléchis',
         'hanches_basses': 'Hanches basses',
-        'position_epaules': 'Position épaules',
-        'amplitude_insuffisante': 'Amplitude insuffisante',
-        'verrouillage_incomplet': 'Verrouillage incomplet',
-        'execution_rapide': 'Exécution rapide',
-        'extension_incomplete': 'Extension incomplète',
-        'profondeur_insuffisante': 'Profondeur insuffisante'
+        'position_epaules': 'Position épaules'
     };
     
     for (const [key, value] of Object.entries(deviations)) {
@@ -247,7 +208,7 @@ function startNewAnalysis() {
 }
 
 // ============================================================================
-// UI HELPERS
+// UI
 // ============================================================================
 function setLoading(button, isLoading) {
     const btnText = button.querySelector('.btn-text');
@@ -269,21 +230,9 @@ function showError(message) {
 }
 
 // ============================================================================
-// UTILITIES
-// ============================================================================
-function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
-}
-
-// ============================================================================
 // START
 // ============================================================================
 document.addEventListener('DOMContentLoaded', init);
-console.log('LevelUpCali - Analyse Biomécanique v12.0');
-console.log('API:', API_URL);
-console.log('Mode: Analyse image statique avec landmarks colorés');
+console.log('🎯 LevelUpCali v13.0 - Optimisé Web');
+console.log('📡 API:', API_URL);
+console.log('⚡ Flux: Navigateur → Fichier RAW → Flask → NumPy → MediaPipe');
