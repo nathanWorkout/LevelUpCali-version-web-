@@ -51,46 +51,12 @@ STATIC_SKILLS = {
 # ============================================================================
 def preprocess_image(image):
     """
-    Prétraitement optimisé pour MediaPipe :
-    - Assombrissement si trop lumineux
-    - Amélioration du contraste (CLAHE)
-    - Augmentation de la saturation
+    Pas de prétraitement pour l'instant - images web déjà bien exposées.
     """
-    try:
-        # Conversion LAB
-        lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
-        l, a, b = cv2.split(lab)
-        
-        # Analyse luminosité
-        brightness = np.mean(l)
-        logger.info(f"Luminosité: {brightness:.1f}/255")
-        
-        # Assombrissement si > 70
-        if brightness > 70:
-            target = 65
-            factor = (target / brightness) * 0.75
-            l = np.clip(l * factor, 0, 255).astype(np.uint8)
-            logger.info(f"Assombri vers {target}")
-        
-        # Contraste adaptatif
-        contrast = np.std(l)
-        clip_limit = 5.0 if contrast < 30 else 3.5
-        clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(8, 8))
-        l = clahe.apply(l)
-        
-        # Saturation
-        a = np.clip(a * 1.2, 0, 255).astype(np.uint8)
-        b = np.clip(b * 1.2, 0, 255).astype(np.uint8)
-        
-        # Reconversion BGR
-        enhanced = cv2.cvtColor(cv2.merge([l, a, b]), cv2.COLOR_LAB2BGR)
-        logger.info("Prétraitement OK")
-        
-        return enhanced
-        
-    except Exception as e:
-        logger.error(f"Erreur prétraitement: {e}")
-        return image
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    brightness = np.mean(gray)
+    logger.info(f"Luminosité: {brightness:.1f}/255 - Pas de prétraitement")
+    return image
 
 # ============================================================================
 # CALCULS GÉOMÉTRIQUES
@@ -406,6 +372,8 @@ def analyze_static():
     OUTPUT : JSON avec analyse + image annotée en base64
     """
     logger.info("=== NOUVELLE ANALYSE ===")
+    logger.info(f"Content-Type: {request.content_type}")
+    logger.info(f"Files: {list(request.files.keys())}")
     
     try:
         # ====================================================================
@@ -414,7 +382,7 @@ def analyze_static():
         if 'image' not in request.files:
             return jsonify({
                 "status": "error",
-                "message": "Aucune image dans la requête"
+                "message": "Aucune image dans la requête. Clé attendue: 'image'"
             }), 400
         
         file = request.files['image']
@@ -445,7 +413,7 @@ def analyze_static():
         # ====================================================================
         with mp_pose.Pose(
             static_image_mode=True,
-            min_detection_confidence=0.5,
+            min_detection_confidence=0.3,  # Baissé pour mieux détecter
             model_complexity=1
         ) as pose:
             
