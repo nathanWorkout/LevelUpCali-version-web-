@@ -304,6 +304,7 @@ def analyze_figure(figure, angles, model):
         }
     
     logger.info(f"Analyse {figure}: {issue['cause']}")
+    logger.info(f"ANGLES BRUTS - lh={lh:.1f} rh={rh:.1f} ls={ls:.1f} rs={rs:.1f} le={le:.1f} re={re:.1f}")
     
     return {**issue, "deviations": deviations}
 
