@@ -97,7 +97,15 @@ def calculate_angles(landmarks):
             ))
         except:
             angles[joint] = 0.0
-    
+
+    # Coordonnées X des épaules pour détecter vue de face vs profil
+    try:
+        angles["_ls_x"] = landmarks.landmark[mp_pose.PoseLandmark.LEFT_SHOULDER].x
+        angles["_rs_x"] = landmarks.landmark[mp_pose.PoseLandmark.RIGHT_SHOULDER].x
+    except:
+        angles["_ls_x"] = 0.5
+        angles["_rs_x"] = 0.5
+
     return angles
 
 # ============================================================================
@@ -119,7 +127,7 @@ def detect_figure(landmarks):
         if (nose_y - ankle_y > 0.15
                 and nose_y > hip_y
                 and wrist_y > nose_y
-                and wrist_y > ankle_y + 0.3):
+                and wrist_y > ankle_y + 0.5):
             logger.info("→ HANDSTAND détecté")
             return "handstand"
         
@@ -227,8 +235,14 @@ def analyze_figure(figure, angles, model):
     # PLANCHE
     # ========================================================================
     elif figure == "planche":
-        # Erreur 1 : Hanches basses (priorité haute)
-        if lh < model["hip"]["min"] or rh < model["hip"]["min"]:
+        # Détecter l orientation (profil vs face) via écart X des épaules
+        # De profil : grand écart X | De face : petit écart X
+        ls_x = angles.get("_ls_x", 0.5)
+        rs_x = angles.get("_rs_x", 0.5)
+        vue_de_face = abs(ls_x - rs_x) < 0.15
+
+        # Erreur 1 : Hanches basses (ignorée si vue de face - angle non fiable)
+        if not vue_de_face and (lh < model["hip"]["min"] or rh < model["hip"]["min"]):
             deviations["hanches_basses"] = "Oui"
             issue = {
                 "cause": "Hanches trop basses, gainage insuffisant",
@@ -519,5 +533,5 @@ def internal_error(error):
 # ============================================================================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    logger.info(f"Démarrage serveur sur port {port}")
+    logger.info(f"🚀 Démarrage serveur sur port {port}")
     app.run(host="0.0.0.0", port=port, debug=False)
