@@ -50,10 +50,21 @@ STATIC_SKILLS = {
 }
 
 # ============================================================================
-# CALCULS 
+# PRÉTRAITEMENT IMAGE
+# ============================================================================
+def preprocess_image(image):
+    """
+    Pas de prétraitement pour l'instant - images web déjà bien exposées.
+    """
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    brightness = np.mean(gray)
+    logger.info(f"Luminosité: {brightness:.1f}/255 - Pas de prétraitement")
+    return image
+
+# ============================================================================
+# CALCULS
 # ============================================================================
 def calculate_angle(a, b, c):
-
     """Calcule l'angle ABC entre 3 points."""
     a, b, c = np.array(a), np.array(b), np.array(c)
     radians = np.arctan2(c[1] - b[1], c[0] - b[0]) - np.arctan2(a[1] - b[1], a[0] - b[0])
@@ -61,14 +72,12 @@ def calculate_angle(a, b, c):
     return 360 - angle if angle > 180 else angle
 
 def get_point(landmarks, name):
-
     """Récupère les coordonnées [x, y] d'un landmark."""
     lm = landmarks.landmark[mp_pose.PoseLandmark[name.upper()]]
     return [lm.x, lm.y]
 
 def calculate_angles(landmarks):
     """Calcule tous les angles articulaires."""
-    
     joints = {
         "left_elbow": ["left_shoulder", "left_elbow", "left_wrist"],
         "right_elbow": ["right_shoulder", "right_elbow", "right_wrist"],
