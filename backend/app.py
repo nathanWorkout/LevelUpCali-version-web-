@@ -29,23 +29,35 @@ CORS(app)
 # ============================================================================
 STATIC_SKILLS = {
     "handstand": {
-        "elbow": {"min": 160},      
-        "shoulder": {"min": 160},     
-        "hip": {"min": 158},         
-        "knee": {"min": 165}          
+        "elbow": {"min": 160},        # tolérance +5° (était 165)
+        "shoulder": {"min": 160},     # tolérance +5° (était 165)
+        "hip": {"min": 158},          # tolérance +7° (était 165)
+        "knee": {"min": 165}          # tolérance +5° (était 170, défini inline)
     },
     "planche": {
-        "elbow": {"min": 160},      
-        "shoulder": {"min": 25, "max": 65}, 
-        "hip": {"min": 158}          
+        "elbow": {"min": 160},        # tolérance +5° (était 165)
+        "shoulder": {"min": 25, "max": 65},  # plage élargie modérément (était 30–60)
+        "hip": {"min": 158}           # tolérance +7° (était 165)
     },
     "front_lever": {
-        "elbow": {"min": 160},       
-        "shoulder": {"min": 25, "max": 65},  
-        "hip": {"min": 160},         
+        "elbow": {"min": 160},        # tolérance +5° (était 162)
+        "shoulder": {"min": 25, "max": 65},  # plage élargie modérément (était 30–60)
+        "hip": {"min": 160},          # tolérance +7° (était 167)
         "tolerance_biceps": 3
     }
 }
+
+# ============================================================================
+# PRÉTRAITEMENT IMAGE
+# ============================================================================
+def preprocess_image(image):
+    """
+    Pas de prétraitement pour l'instant - images web déjà bien exposées.
+    """
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    brightness = np.mean(gray)
+    logger.info(f"Luminosité: {brightness:.1f}/255 - Pas de prétraitement")
+    return image
 
 # ============================================================================
 # CALCULS GÉOMÉTRIQUES
@@ -404,7 +416,12 @@ def analyze_static():
         logger.info(f"Image décodée: {original_image.shape}")
         
         # ====================================================================
-        # 3. DÉTECTION MEDIAPIPE
+        # 3. PRÉTRAITEMENT POUR MEDIAPIPE
+        # ====================================================================
+        preprocessed = preprocess_image(original_image.copy())
+
+        # ====================================================================
+        # 4. DÉTECTION MEDIAPIPE
         # ====================================================================
         with mp_pose.Pose(
             static_image_mode=True,
@@ -412,7 +429,7 @@ def analyze_static():
             model_complexity=1
         ) as pose:
             
-            rgb = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
+            rgb = cv2.cvtColor(preprocessed, cv2.COLOR_BGR2RGB)
             results = pose.process(rgb)
             
             if not results.pose_landmarks:
@@ -457,7 +474,7 @@ def analyze_static():
             _, buffer = cv2.imencode('.jpg', annotated_image, [cv2.IMWRITE_JPEG_QUALITY, 90])
             image_b64 = base64.b64encode(buffer).decode('utf-8')
             
-            logger.info(f" Analyse terminée: {figure}")
+            logger.info(f"✓ Analyse terminée: {figure}")
             
             # ================================================================
             # 9. RÉPONSE
@@ -499,5 +516,5 @@ def internal_error(error):
 # ============================================================================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    logger.info(f"🚀 Démarrage serveur sur port {port}")
+    logger.info(f"Démarrage serveur sur port {port}")
     app.run(host="0.0.0.0", port=port, debug=False)
