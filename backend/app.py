@@ -29,20 +29,20 @@ CORS(app)
 # ============================================================================
 STATIC_SKILLS = {
     "handstand": {
-        "elbow": {"min": 160},        # tolérance +5° (était 165)
-        "shoulder": {"min": 160},     # tolérance +5° (était 165)
-        "hip": {"min": 158},          # tolérance +7° (était 165)
-        "knee": {"min": 165}          # tolérance +5° (était 170, défini inline)
+        "elbow": {"min": 160},        
+        "shoulder": {"min": 160},    
+        "hip": {"min": 158},         
+        "knee": {"min": 165}          
     },
     "planche": {
-        "elbow": {"min": 160},        # tolérance +5° (était 165)
-        "shoulder": {"min": 25, "max": 65},  # plage élargie modérément (était 30–60)
-        "hip": {"min": 158}           # tolérance +7° (était 165)
+        "elbow": {"min": 160},      
+        "shoulder": {"min": 25, "max": 65},
+        "hip": {"min": 158}       
     },
     "front_lever": {
-        "elbow": {"min": 160},        # tolérance +5° (était 162)
-        "shoulder": {"min": 25, "max": 65},  # plage élargie modérément (était 30–60)
-        "hip": {"min": 160},          # tolérance +7° (était 167)
+        "elbow": {"min": 160},        
+        "shoulder": {"min": 25, "max": 65},  
+        "hip": {"min": 160},          
         "tolerance_biceps": 3
     }
 }
