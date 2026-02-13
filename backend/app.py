@@ -29,19 +29,20 @@ CORS(app)
 # ============================================================================
 STATIC_SKILLS = {
     "handstand": {
-        "elbow": {"min": 165},
-        "shoulder": {"min": 165},
-        "hip": {"min": 165}
+        "elbow": {"min": 155},        # tolérance +10° (était 165)
+        "shoulder": {"min": 155},     # tolérance +10° (était 165)
+        "hip": {"min": 155},          # tolérance +10° (était 165)
+        "knee": {"min": 160}          # tolérance +10° (était 170, défini inline)
     },
     "planche": {
-        "elbow": {"min": 165},
-        "shoulder": {"min": 30, "max": 60},
-        "hip": {"min": 165}
+        "elbow": {"min": 155},        # tolérance +10° (était 165)
+        "shoulder": {"min": 20, "max": 70},  # plage élargie (était 30–60)
+        "hip": {"min": 155}           # tolérance +10° (était 165)
     },
     "front_lever": {
-        "elbow": {"min": 162},
-        "shoulder": {"min": 30, "max": 60},
-        "hip": {"min": 167},
+        "elbow": {"min": 155},        # aligné sur la même tolérance
+        "shoulder": {"min": 20, "max": 70},  # plage élargie (était 30–60)
+        "hip": {"min": 157},          # tolérance +10° (était 167)
         "tolerance_biceps": 3
     }
 }
@@ -145,13 +146,13 @@ def detect_figure(landmarks):
             logger.info(f"Score Front Lever: {front_lever_score}/3")
             
             if front_lever_score >= 2:
-                logger.info("→ FRONT LEVER")
+                logger.info("FRONT LEVER")
                 return "front_lever"
             else:
-                logger.info("→ PLANCHE")
+                logger.info("PLANCHE")
                 return "planche"
         
-        logger.info("→ Figure inconnue")
+        logger.info("Figure inconnue")
         return "unknown"
         
     except Exception as e:
@@ -181,6 +182,8 @@ def analyze_figure(figure, angles, model):
     # HANDSTAND
     # ========================================================================
     if figure == "handstand":
+        knee_min = model.get("knee", {}).get("min", 160)
+
         # Erreur 1 : Hanches fléchies (priorité haute)
         if lh < model["hip"]["min"] or rh < model["hip"]["min"]:
             deviations["hanches_flechies"] = "Oui"
@@ -200,12 +203,21 @@ def analyze_figure(figure, angles, model):
             }
         
         # Erreur 3 : Genoux fléchis
-        elif lk < 170 or rk < 170:
+        elif lk < knee_min or rk < knee_min:
             deviations["genoux_flechis"] = "Oui"
             issue = {
                 "cause": "Genoux fléchis, jambes non tendues",
                 "compensation": "Perte d'alignement et instabilité",
                 "correction": "Verrouille complètement les genoux, engage les quadriceps"
+            }
+        
+        # Erreur 4 : Position épaules
+        elif ls < model["shoulder"]["min"] or rs < model["shoulder"]["min"]:
+            deviations["position_epaules"] = "Oui"
+            issue = {
+                "cause": "Épaules insuffisamment ouvertes, manque d'élévation scapulaire",
+                "compensation": "Perte d'équilibre et instabilité en haut du handstand",
+                "correction": "Pousse activement dans le sol, ouvre les épaules au maximum et élève les scapulas pour verrouiller la position"
             }
     
     # ========================================================================
@@ -216,7 +228,7 @@ def analyze_figure(figure, angles, model):
         if lh < model["hip"]["min"] or rh < model["hip"]["min"]:
             deviations["hanches_basses"] = "Oui"
             issue = {
-                "cause": "Hanches trop basses, gainage insuffisant",
+                "cause": "Hanches trop basses ou trop hautes, gainage insuffisant",
                 "compensation": "Les bras compensent en se pliant pour soutenir le poids",
                 "correction": "Renforce le gainage : serre abdos et fessiers, rétroversion du bassin"
             }
@@ -236,11 +248,11 @@ def analyze_figure(figure, angles, model):
             issue = {
                 "cause": "Position des épaules incorrecte",
                 "compensation": "Instabilité et perte de protraction scapulaire",
-                "correction": "Pousse dans le sol pour protracter les épaules vers l'avant"
+                "correction": "Pousse dans le sol pour protracter les épaules vers l'avant ET vers le bas (protraction + dépression scapulaire)"
             }
     
     # ========================================================================
-    # FRONT LEVER - PRIORISATION STRICTE
+    # FRONT LEVER - PRIORISATION 
     # ========================================================================
     elif figure == "front_lever":
         # Tolérance pour biceps développés
@@ -353,13 +365,14 @@ def home():
     """Endpoint de santé."""
     return jsonify({
         "status": "ok",
-        "version": "13.0 - Optimisé Web",
+        "version": "13.1 - Tolérances génériques",
         "description": "API d'analyse biomécanique Calisthenics",
         "features": {
             "flux": "Navigateur → Fichier RAW → NumPy → MediaPipe",
             "preprocessing": "Assombrissement + CLAHE + Saturation",
             "figures": ["handstand", "planche", "front_lever"],
-            "tolerance_biceps": "3° pour front lever"
+            "tolerance_angles": "±10° sur tous les seuils articulaires",
+            "tolerance_biceps": "3° supplémentaires pour front lever coudes"
         }
     })
 
@@ -462,7 +475,7 @@ def analyze_static():
             _, buffer = cv2.imencode('.jpg', annotated_image, [cv2.IMWRITE_JPEG_QUALITY, 90])
             image_b64 = base64.b64encode(buffer).decode('utf-8')
             
-            logger.info(f"✓ Analyse terminée: {figure}")
+            logger.info(f"Analyse terminée: {figure}")
             
             # ================================================================
             # 9. RÉPONSE
@@ -504,5 +517,5 @@ def internal_error(error):
 # ============================================================================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    logger.info(f"🚀 Démarrage serveur sur port {port}")
+    logger.info(f"Démarrage serveur sur port {port}")
     app.run(host="0.0.0.0", port=port, debug=False)
