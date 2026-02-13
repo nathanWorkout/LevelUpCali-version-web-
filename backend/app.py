@@ -29,20 +29,20 @@ CORS(app)
 # ============================================================================
 STATIC_SKILLS = {
     "handstand": {
-        "elbow": {"min": 160},        
-        "shoulder": {"min": 160},    
-        "hip": {"min": 158},         
-        "knee": {"min": 165}          
+        "elbow": {"min": 160},        # tolérance +5° (était 165)
+        "shoulder": {"min": 160},     # tolérance +5° (était 165)
+        "hip": {"min": 158},          # tolérance +7° (était 165)
+        "knee": {"min": 165}          # tolérance +5° (était 170, défini inline)
     },
     "planche": {
-        "elbow": {"min": 160},      
-        "shoulder": {"min": 25, "max": 65},
-        "hip": {"min": 158}       
+        "elbow": {"min": 160},        # tolérance +5° (était 165)
+        "shoulder": {"min": 25, "max": 65},  # plage élargie modérément (était 30–60)
+        "hip": {"min": 150}           # tolérance +15° (était 165) - planche difficile à mesurer
     },
     "front_lever": {
-        "elbow": {"min": 160},        
-        "shoulder": {"min": 25, "max": 65},  
-        "hip": {"min": 160},          
+        "elbow": {"min": 160},        # tolérance +5° (était 162)
+        "shoulder": {"min": 25, "max": 65},  # plage élargie modérément (était 30–60)
+        "hip": {"min": 160},          # tolérance +7° (était 167)
         "tolerance_biceps": 3
     }
 }
@@ -516,5 +516,5 @@ def internal_error(error):
 # ============================================================================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    logger.info(f"Démarrage serveur sur port {port}")
+    logger.info(f"🚀 Démarrage serveur sur port {port}")
     app.run(host="0.0.0.0", port=port, debug=False)
