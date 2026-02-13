@@ -37,7 +37,7 @@ STATIC_SKILLS = {
     "planche": {
         "elbow": {"min": 160},        # tolérance +5° (était 165)
         "shoulder": {"min": 25, "max": 65},  # plage élargie modérément (était 30–60)
-        "hip": {"min": 150}           # tolérance +15° (était 165) - planche difficile à mesurer
+        "hip": {"min": 148}           # tolérance +17° (était 165) - planche difficile à mesurer
     },
     "front_lever": {
         "elbow": {"min": 160},        # tolérance +5° (était 162)
@@ -115,8 +115,11 @@ def detect_figure(landmarks):
         ankle_y = (lm[mp_pose.PoseLandmark.LEFT_ANKLE].y + lm[mp_pose.PoseLandmark.RIGHT_ANKLE].y) / 2
         shoulder_y = (lm[mp_pose.PoseLandmark.LEFT_SHOULDER].y + lm[mp_pose.PoseLandmark.RIGHT_SHOULDER].y) / 2
         
-        # HANDSTAND : chevilles en haut, tête en bas
-        if nose_y - ankle_y > 0.15 and nose_y > hip_y and wrist_y > nose_y:
+        # HANDSTAND : chevilles en haut, tête en bas, poignets nettement plus bas que les chevilles
+        if (nose_y - ankle_y > 0.15
+                and nose_y > hip_y
+                and wrist_y > nose_y
+                and wrist_y > ankle_y + 0.3):
             logger.info("→ HANDSTAND détecté")
             return "handstand"
         
@@ -304,7 +307,6 @@ def analyze_figure(figure, angles, model):
         }
     
     logger.info(f"Analyse {figure}: {issue['cause']}")
-    logger.info(f"ANGLES BRUTS - lh={lh:.1f} rh={rh:.1f} ls={ls:.1f} rs={rs:.1f} le={le:.1f} re={re:.1f}")
     
     return {**issue, "deviations": deviations}
 
@@ -517,5 +519,5 @@ def internal_error(error):
 # ============================================================================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    logger.info(f"🚀 Démarrage serveur sur port {port}")
+    logger.info(f"Démarrage serveur sur port {port}")
     app.run(host="0.0.0.0", port=port, debug=False)
