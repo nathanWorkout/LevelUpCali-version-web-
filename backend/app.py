@@ -29,40 +29,26 @@ CORS(app)
 # ============================================================================
 STATIC_SKILLS = {
     "handstand": {
-        "elbow": {"min": 155},        
-        "shoulder": {"min": 155},    
-        "hip": {"min": 155},          
-        "knee": {"min": 160}         
+        "elbow": {"min": 160},      
+        "shoulder": {"min": 160},     
+        "hip": {"min": 158},         
+        "knee": {"min": 165}          
     },
-
     "planche": {
-        "elbow": {"min": 155},        
-        "shoulder": {"min": 20, "max": 70},  
-        "hip": {"min": 155}           
+        "elbow": {"min": 160},      
+        "shoulder": {"min": 25, "max": 65}, 
+        "hip": {"min": 158}          
     },
-
     "front_lever": {
-        "elbow": {"min": 155},      
-        "shoulder": {"min": 20, "max": 70},  
-        "hip": {"min": 157},         
+        "elbow": {"min": 160},       
+        "shoulder": {"min": 25, "max": 65},  
+        "hip": {"min": 160},         
         "tolerance_biceps": 3
     }
 }
 
 # ============================================================================
-# PRÉTRAITEMENT IMAGE
-# ============================================================================
-def preprocess_image(image):
-    """
-    Pas de prétraitement pour l'instant - images web déjà bien exposées.
-    """
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    brightness = np.mean(gray)
-    logger.info(f"Luminosité: {brightness:.1f}/255 - Pas de prétraitement")
-    return image
-
-# ============================================================================
-# CALCULS
+# CALCULS GÉOMÉTRIQUES
 # ============================================================================
 def calculate_angle(a, b, c):
     """Calcule l'angle ABC entre 3 points."""
@@ -148,13 +134,13 @@ def detect_figure(landmarks):
             logger.info(f"Score Front Lever: {front_lever_score}/3")
             
             if front_lever_score >= 2:
-                logger.info("FRONT LEVER")
+                logger.info("→ FRONT LEVER")
                 return "front_lever"
             else:
-                logger.info("PLANCHE")
+                logger.info("→ PLANCHE")
                 return "planche"
         
-        logger.info("Figure inconnue")
+        logger.info("→ Figure inconnue")
         return "unknown"
         
     except Exception as e:
@@ -230,7 +216,7 @@ def analyze_figure(figure, angles, model):
         if lh < model["hip"]["min"] or rh < model["hip"]["min"]:
             deviations["hanches_basses"] = "Oui"
             issue = {
-                "cause": "Hanches trop basses ou trop hautes, gainage insuffisant",
+                "cause": "Hanches trop basses, gainage insuffisant",
                 "compensation": "Les bras compensent en se pliant pour soutenir le poids",
                 "correction": "Renforce le gainage : serre abdos et fessiers, rétroversion du bassin"
             }
@@ -254,7 +240,7 @@ def analyze_figure(figure, angles, model):
             }
     
     # ========================================================================
-    # FRONT LEVER - PRIORISATION 
+    # FRONT LEVER - PRIORISATION STRICTE
     # ========================================================================
     elif figure == "front_lever":
         # Tolérance pour biceps développés
@@ -371,7 +357,6 @@ def home():
         "description": "API d'analyse biomécanique Calisthenics",
         "features": {
             "flux": "Navigateur → Fichier RAW → NumPy → MediaPipe",
-            "preprocessing": "Assombrissement + CLAHE + Saturation",
             "figures": ["handstand", "planche", "front_lever"],
             "tolerance_angles": "±10° sur tous les seuils articulaires",
             "tolerance_biceps": "3° supplémentaires pour front lever coudes"
@@ -419,12 +404,7 @@ def analyze_static():
         logger.info(f"Image décodée: {original_image.shape}")
         
         # ====================================================================
-        # 3. PRÉTRAITEMENT POUR MEDIAPIPE
-        # ====================================================================
-        preprocessed = preprocess_image(original_image.copy())
-        
-        # ====================================================================
-        # 4. DÉTECTION MEDIAPIPE
+        # 3. DÉTECTION MEDIAPIPE
         # ====================================================================
         with mp_pose.Pose(
             static_image_mode=True,
@@ -432,7 +412,7 @@ def analyze_static():
             model_complexity=1
         ) as pose:
             
-            rgb = cv2.cvtColor(preprocessed, cv2.COLOR_BGR2RGB)
+            rgb = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
             results = pose.process(rgb)
             
             if not results.pose_landmarks:
@@ -477,7 +457,7 @@ def analyze_static():
             _, buffer = cv2.imencode('.jpg', annotated_image, [cv2.IMWRITE_JPEG_QUALITY, 90])
             image_b64 = base64.b64encode(buffer).decode('utf-8')
             
-            logger.info(f"Analyse terminée: {figure}")
+            logger.info(f" Analyse terminée: {figure}")
             
             # ================================================================
             # 9. RÉPONSE
@@ -519,5 +499,5 @@ def internal_error(error):
 # ============================================================================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    logger.info(f"Démarrage serveur sur port {port}")
+    logger.info(f"🚀 Démarrage serveur sur port {port}")
     app.run(host="0.0.0.0", port=port, debug=False)
