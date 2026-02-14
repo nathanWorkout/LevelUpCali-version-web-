@@ -29,20 +29,20 @@ CORS(app)
 # ============================================================================
 STATIC_SKILLS = {
     "handstand": {
-        "elbow": {"min": 160},        # tolérance +5° (était 165)
-        "shoulder": {"min": 160},     # tolérance +5° (était 165)
-        "hip": {"min": 158},          # tolérance +7° (était 165)
-        "knee": {"min": 165}          # tolérance +5° (était 170, défini inline)
+        "elbow": {"min": 160},        
+        "shoulder": {"min": 160},     
+        "hip": {"min": 158},       
+        "knee": {"min": 165}          
     },
     "planche": {
-        "elbow": {"min": 160},        # tolérance +5° (était 165)
-        "shoulder": {"min": 25, "max": 65},  # plage élargie modérément (était 30–60)
-        "hip": {"min": 148}           # tolérance +17° (était 165) - planche difficile à mesurer
+        "elbow": {"min": 160},        
+        "shoulder": {"min": 25, "max": 65},  
+        "hip": {"min": 148}          
     },
     "front_lever": {
-        "elbow": {"min": 160},        # tolérance +5° (était 162)
-        "shoulder": {"min": 25, "max": 65},  # plage élargie modérément (était 30–60)
-        "hip": {"min": 160},          # tolérance +7° (était 167)
+        "elbow": {"min": 160},    
+        "shoulder": {"min": 25, "max": 65},  
+        "hip": {"min": 160},       
         "tolerance_biceps": 3
     }
 }
@@ -116,56 +116,61 @@ def detect_figure(landmarks):
     try:
         lm = landmarks.landmark
         
-        # Positions verticales (Y)
-        nose_y = lm[mp_pose.PoseLandmark.NOSE].y
-        hip_y = (lm[mp_pose.PoseLandmark.LEFT_HIP].y + lm[mp_pose.PoseLandmark.RIGHT_HIP].y) / 2
-        wrist_y = (lm[mp_pose.PoseLandmark.LEFT_WRIST].y + lm[mp_pose.PoseLandmark.RIGHT_WRIST].y) / 2
-        ankle_y = (lm[mp_pose.PoseLandmark.LEFT_ANKLE].y + lm[mp_pose.PoseLandmark.RIGHT_ANKLE].y) / 2
+        # Positions verticales (Y) — en coords image: 0=haut, 1=bas
+        nose_y     = lm[mp_pose.PoseLandmark.NOSE].y
+        hip_y      = (lm[mp_pose.PoseLandmark.LEFT_HIP].y   + lm[mp_pose.PoseLandmark.RIGHT_HIP].y)   / 2
+        wrist_y    = (lm[mp_pose.PoseLandmark.LEFT_WRIST].y  + lm[mp_pose.PoseLandmark.RIGHT_WRIST].y)  / 2
+        ankle_y    = (lm[mp_pose.PoseLandmark.LEFT_ANKLE].y  + lm[mp_pose.PoseLandmark.RIGHT_ANKLE].y)  / 2
         shoulder_y = (lm[mp_pose.PoseLandmark.LEFT_SHOULDER].y + lm[mp_pose.PoseLandmark.RIGHT_SHOULDER].y) / 2
-        
-        # HANDSTAND : chevilles en haut, tête en bas, poignets nettement plus bas que les chevilles
-        if (nose_y - ankle_y > 0.15
-                and nose_y > hip_y
-                and wrist_y > nose_y
-                and wrist_y > ankle_y + 0.5):
+
+        logger.info(
+            f"Y → nose:{nose_y:.3f} shoulder:{shoulder_y:.3f} "
+            f"hip:{hip_y:.3f} ankle:{ankle_y:.3f} wrist:{wrist_y:.3f}"
+        )
+
+        # ── HANDSTAND ────────────────────────────────────────────────────────
+        # Critère : chevilles AU-DESSUS des épaules dans l'image
+        #  tête en dessous des hanches 
+        is_inverted    = ankle_y < shoulder_y   # chevilles plus hautes à l'écran
+        nose_below_hip = nose_y  > hip_y        # tête en bas
+
+        logger.info(f"Handstand check → is_inverted:{is_inverted}  nose_below_hip:{nose_below_hip}")
+
+        if is_inverted and nose_below_hip:
             logger.info("→ HANDSTAND détecté")
             return "handstand"
-        
-        # FRONT LEVER vs PLANCHE (corps horizontal)
+
+        # ── FRONT LEVER vs PLANCHE ────────────────────────────────────────────
         y_diff = hip_y - nose_y
         logger.info(f"Diff verticale (hip-nose): {y_diff:.3f}")
-        
-        # Si nez nettement plus haut → Front Lever
+
         if y_diff > 0.10:
             logger.info("→ FRONT LEVER (nez plus haut)")
             return "front_lever"
-        
-        # Corps quasi horizontal → analyser la profondeur (Z)
+
         if abs(y_diff) < 0.25:
-            wrist_z = (lm[mp_pose.PoseLandmark.LEFT_WRIST].z + lm[mp_pose.PoseLandmark.RIGHT_WRIST].z) / 2
+            wrist_z    = (lm[mp_pose.PoseLandmark.LEFT_WRIST].z    + lm[mp_pose.PoseLandmark.RIGHT_WRIST].z)    / 2
             shoulder_z = (lm[mp_pose.PoseLandmark.LEFT_SHOULDER].z + lm[mp_pose.PoseLandmark.RIGHT_SHOULDER].z) / 2
-            nose_z = lm[mp_pose.PoseLandmark.NOSE].z
-            hip_z = (lm[mp_pose.PoseLandmark.LEFT_HIP].z + lm[mp_pose.PoseLandmark.RIGHT_HIP].z) / 2
-            
-            # Critères Front Lever
+            nose_z     = lm[mp_pose.PoseLandmark.NOSE].z
+            hip_z      = (lm[mp_pose.PoseLandmark.LEFT_HIP].z + lm[mp_pose.PoseLandmark.RIGHT_HIP].z) / 2
+
             front_lever_score = sum([
-                wrist_y < nose_y + 0.05,        # Poignets au-dessus du nez
-                wrist_z > shoulder_z + 0.02,    # Poignets derrière épaules
-                nose_z > hip_z + 0.05           # Nez derrière hanches
+                wrist_y < nose_y + 0.05,
+                wrist_z > shoulder_z + 0.02,
+                nose_z  > hip_z + 0.05
             ])
-            
+
             logger.info(f"Score Front Lever: {front_lever_score}/3")
-            
             if front_lever_score >= 2:
-                logger.info("→ FRONT LEVER")
+                logger.info("FRONT LEVER")
                 return "front_lever"
             else:
-                logger.info("→ PLANCHE")
+                logger.info("PLANCHE")
                 return "planche"
-        
-        logger.info("→ Figure inconnue")
+
+        logger.info("Figure inconnue")
         return "unknown"
-        
+
     except Exception as e:
         logger.error(f"Erreur détection: {e}")
         return "unknown"

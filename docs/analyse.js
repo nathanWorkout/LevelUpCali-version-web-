@@ -108,7 +108,7 @@ function resetUploadState() {
 async function analyzeImage() {
     if (!state.currentFile || state.isProcessing) return;
     
-    console.log('🚀 Analyse image (fichier brut)...');
+    console.log('Analyse image (fichier brut)...');
     
     setLoading(elements.analyzeImageBtn, true);
     state.isProcessing = true;
