@@ -23,7 +23,7 @@ app = Flask(__name__)
 CORS(app)
 
 # ============================================================================
-# MODÈLES DE RÉFÉRENCE
+# MODÈLES
 # ============================================================================
 STATIC_SKILLS = {
     "handstand": {
@@ -33,20 +33,21 @@ STATIC_SKILLS = {
         "knee":     {"min": 165}
     },
     "planche": {
-        "elbow":    {"min": 160},
+        "elbow":    {"min": 155},
         "shoulder": {"min": 25, "max": 65},
         "hip":      {"min": 148}
     },
     "front_lever": {
-        "elbow":            {"min": 160},
+        "elbow":            {"min": 155},
         "shoulder":         {"min": 25, "max": 65},
         "hip":              {"min": 160},
         "tolerance_biceps": 3
     }
+
 }
 
 # ============================================================================
-# PRÉTRAITEMENT IMAGE
+# PRÉTRAITEMENT IMAGE 
 # ============================================================================
 def preprocess_image(image):
     gray       = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -55,7 +56,7 @@ def preprocess_image(image):
     return image
 
 # ============================================================================
-# CALCULS GÉOMÉTRIQUES
+# CALCULS D'ANGLES ET MÉTADONNÉES DE FIABILITÉ
 # ============================================================================
 def calculate_angle(a, b, c):
     """Calcule l'angle ABC entre 3 points 2D."""
@@ -92,7 +93,7 @@ def calculate_angles(landmarks):
         except:
             angles[joint] = 0.0
 
-    # X des épaules → détecter vue de face vs profil
+    # X des épaules détecter vue de face vs profil
     try:
         angles["_ls_x"] = landmarks.landmark[mp_pose.PoseLandmark.LEFT_SHOULDER].x
         angles["_rs_x"] = landmarks.landmark[mp_pose.PoseLandmark.RIGHT_SHOULDER].x
@@ -113,7 +114,7 @@ def calculate_angles(landmarks):
         angles["_rh_vis"] = 1.0
 
     logger.info(
-        f"Angles → L_elbow:{angles['left_elbow']:.1f}° R_elbow:{angles['right_elbow']:.1f}° "
+        f"Angles  L_elbow:{angles['left_elbow']:.1f}° R_elbow:{angles['right_elbow']:.1f}° "
         f"L_shoulder:{angles['left_shoulder']:.1f}° R_shoulder:{angles['right_shoulder']:.1f}° "
         f"L_hip:{angles['left_hip']:.1f}° R_hip:{angles['right_hip']:.1f}° "
         f"L_knee:{angles['left_knee']:.1f}° R_knee:{angles['right_knee']:.1f}°"
@@ -129,7 +130,7 @@ def calculate_angles(landmarks):
 # DÉTECTION DE FIGURE
 # ============================================================================
 def detect_figure(landmarks):
-    """Détecte la figure : handstand, planche ou front_lever."""
+    """Détecte la figure : handstand, planche ou front_lever + variations(en developpement)"""
     try:
         lm = landmarks.landmark
 
@@ -146,10 +147,10 @@ def detect_figure(landmarks):
         )
 
         # ── HANDSTAND ────────────────────────────────────────────────────────
-        # Critère 1 : les chevilles sont NETTEMENT au-dessus des épaules
-        #             marge > 0.05 → évite les faux positifs planche (tout au même Y)
-        # Critère 2 : le nez est en dessous des hanches → personne inversée
-        inversion_margin = shoulder_y - ankle_y   # positif = chevilles plus hautes
+        # Critère 1 : chevilles NETTEMENT au-dessus des épaules (marge > 0.05)
+        #             évite les faux positifs planche où tout est quasi au même Y
+        # Critère 2 : nez en dessous des hanches → personne inversée
+        inversion_margin = shoulder_y - ankle_y
         is_inverted      = inversion_margin > 0.05
         nose_below_hip   = nose_y > hip_y
 
@@ -159,7 +160,7 @@ def detect_figure(landmarks):
         )
 
         if is_inverted and nose_below_hip:
-            logger.info("→ HANDSTAND détecté")
+            logger.info("HANDSTAND détecté")
             return "handstand"
 
         # ── FRONT LEVER vs PLANCHE ────────────────────────────────────────────
@@ -185,13 +186,13 @@ def detect_figure(landmarks):
             logger.info(f"Score Front Lever: {front_lever_score}/3")
 
             if front_lever_score >= 2:
-                logger.info("→ FRONT LEVER")
+                logger.info("FRONT LEVER")
                 return "front_lever"
             else:
-                logger.info("→ PLANCHE")
+                logger.info("PLANCHE")
                 return "planche"
 
-        logger.info("→ Figure inconnue")
+        logger.info("Figure inconnue")
         return "unknown"
 
     except Exception as e:
@@ -213,22 +214,23 @@ def analyze_figure(figure, angles, model):
     lk = angles.get("left_knee",      180)
     rk = angles.get("right_knee",     180)
 
-    # Fiabilité par articulation (visibilité MediaPipe)
-    # Coudes : au moins UN coude fiable (> 0.35) suffit pour analyser.
-    #          On utilise alors uniquement l'angle du coude fiable.
-    #          Si les DEUX sont sous 0.35 (vue de face franche) → on ignore.
-    # Hanches : les deux doivent être fiables (> 0.6)
-    le_vis = angles.get("_le_vis", 1.0)
-    re_vis = angles.get("_re_vis", 1.0)
+    # ── Fiabilité par articulation ───────────────────────────────────────────
+    le_vis    = angles.get("_le_vis", 1.0)
+    re_vis    = angles.get("_re_vis", 1.0)
     le_fiable = le_vis > 0.35
     re_fiable = re_vis > 0.35
-    coudes_fiables  = le_fiable or re_fiable   # au moins un coude lisible
+
+    # Un seul coude visible → analyse partielle possible mais signalée
+    # Aucun coude visible (vue de face franche) → coudes ignorés
+    un_seul_coude  = (le_fiable) != (re_fiable)   # XOR : exactement un fiable
+    coudes_fiables = le_fiable or re_fiable
+
     hanches_fiables = angles.get("_lh_vis", 1.0) > 0.6 and angles.get("_rh_vis", 1.0) > 0.6
 
     logger.info(
         f"Fiabilité → coude_G:{le_vis:.2f}({'✓' if le_fiable else '✗'}) "
         f"coude_D:{re_vis:.2f}({'✓' if re_fiable else '✗'}) "
-        f"→ coudes_fiables:{coudes_fiables}"
+        f"un_seul_coude:{un_seul_coude}  coudes_fiables:{coudes_fiables}"
     )
 
     deviations = {}
@@ -240,7 +242,7 @@ def analyze_figure(figure, angles, model):
     if figure == "handstand":
         knee_min = model.get("knee", {}).get("min", 160)
 
-        # Erreur 1 — Hanches fléchies (seulement si bien visibles)
+        # Erreur 1 — Hanches fléchies
         if hanches_fiables and (lh < model["hip"]["min"] or rh < model["hip"]["min"]):
             deviations["hanches_flechies"] = "Oui"
             issue = {
@@ -249,16 +251,16 @@ def analyze_figure(figure, angles, model):
                 "correction":   "Contracte abdos et fessiers pour aligner le corps verticalement"
             }
 
-        # Erreur 2 — Coudes fléchis (uniquement les coudes fiables)
+        # Erreur 2 — Coudes fléchis (uniquement coudes TRÈS fiables)
         elif coudes_fiables and (
-            (le_fiable and le < model["elbow"]["min"]) or
-            (re_fiable and re < model["elbow"]["min"])
+            (le_fiable and le_vis > 0.7 and le < model["elbow"]["min"]) or
+            (re_fiable and re_vis > 0.7 and re < model["elbow"]["min"])
         ):
             deviations["coudes_flechis"] = "Oui"
             issue = {
-                "cause":        "Coudes fléchis pendant le maintien",
-                "compensation": "Le dos se cambre pour maintenir l'équilibre",
-                "correction":   "Verrouille complètement les coudes et engage les triceps"
+                "cause":        "Bras fléchis pendant le handstand",
+                "compensation": "Perte de protraction scapulaire",
+                "correction":   "Pousse activement dans le sol, verrouille les coudes"
             }
 
         # Erreur 3 — Genoux fléchis
@@ -285,14 +287,16 @@ def analyze_figure(figure, angles, model):
     elif figure == "planche":
         ls_x        = angles.get("_ls_x", 0.5)
         rs_x        = angles.get("_rs_x", 0.5)
-        vue_de_face = abs(ls_x - rs_x) < 0.15
+        # Seuil à 0.08 : seule une vue franchement de face bloque l'analyse des hanches
+        vue_de_face = abs(ls_x - rs_x) < 0.08
 
         logger.info(
-            f"Planche → vue_de_face:{vue_de_face}  "
-            f"coudes_fiables:{coudes_fiables}  hanches_fiables:{hanches_fiables}"
+            f"Planche → vue_de_face:{vue_de_face} (écart_X:{abs(ls_x-rs_x):.3f})  "
+            f"coudes_fiables:{coudes_fiables}  un_seul_coude:{un_seul_coude}  "
+            f"hanches_fiables:{hanches_fiables}"
         )
 
-        # Erreur 1 — Hanches basses (ignorée si vue de face ou hanches peu visibles)
+        # Erreur 1 — Hanches basses
         if not vue_de_face and hanches_fiables and (lh < model["hip"]["min"] or rh < model["hip"]["min"]):
             deviations["hanches_basses"] = "Oui"
             issue = {
@@ -301,10 +305,10 @@ def analyze_figure(figure, angles, model):
                 "correction":   "Renforce le gainage : serre abdos et fessiers, rétroversion du bassin"
             }
 
-        # Erreur 2 — Coudes fléchis (uniquement les coudes fiables)
+       # Erreur 2 — Coudes fléchis (uniquement coudes TRÈS fiables)
         elif coudes_fiables and (
-            (le_fiable and le < model["elbow"]["min"]) or
-            (re_fiable and re < model["elbow"]["min"])
+            (le_fiable and le_vis > 0.7 and le < model["elbow"]["min"]) or
+            (re_fiable and re_vis > 0.7 and re < model["elbow"]["min"])
         ):
             deviations["coudes_flechis"] = "Oui"
             issue = {
@@ -322,6 +326,15 @@ def analyze_figure(figure, angles, model):
                 "correction":   "Pousse dans le sol pour protracter les épaules vers l'avant ET vers le bas (protraction + dépression scapulaire)"
             }
 
+        # Aucune erreur détectée MAIS un seul coude visible → analyse partielle
+        if not issue and un_seul_coude:
+            logger.info("Analyse partielle : un seul coude visible")
+            issue = {
+                "cause":        "Analyse partielle — un bras n'est pas visible",
+                "compensation": "Impossible d'évaluer les deux coudes sur cette photo",
+                "correction":   "Reprends la photo de profil avec les deux bras bien visibles pour une analyse complète"
+            }
+
     # ========================================================================
     # FRONT LEVER
     # ========================================================================
@@ -329,10 +342,10 @@ def analyze_figure(figure, angles, model):
         tolerance = model.get("tolerance_biceps", 0)
 
         hanches_basses      = hanches_fiables and (lh < model["hip"]["min"] or rh < model["hip"]["min"])
-        coudes_flechis      = coudes_fiables and (
-                                  (le_fiable and le < model["elbow"]["min"] - tolerance) or
-                                  (re_fiable and re < model["elbow"]["min"] - tolerance)
-                              )
+        coudes_flechis = coudes_fiables and (
+            (le_fiable and le_vis > 0.7 and le < model["elbow"]["min"] - tolerance) or
+            (re_fiable and re_vis > 0.7 and re < model["elbow"]["min"] - tolerance)
+        )
         epaules_incorrectes = (ls < model["shoulder"]["min"] or ls > model["shoulder"]["max"] or
                                rs < model["shoulder"]["min"] or rs > model["shoulder"]["max"])
 
@@ -363,7 +376,16 @@ def analyze_figure(figure, angles, model):
                 "correction":   "Tire les épaules vers le bas et vers l'arrière (rétraction + dépression scapulaire)"
             }
 
-    # Aucune erreur détectée
+        # Analyse partielle si un seul coude visible et aucune autre erreur
+        if not issue and un_seul_coude:
+            logger.info("Analyse partielle : un seul coude visible")
+            issue = {
+                "cause":        "Analyse partielle — un bras n'est pas visible",
+                "compensation": "Impossible d'évaluer les deux coudes sur cette photo",
+                "correction":   "Reprends la photo de profil avec les deux bras bien visibles pour une analyse complète"
+            }
+
+    # Aucune erreur détectée, les deux coudes visibles → vraiment parfait
     if not issue:
         issue = {
             "cause":        "Maintien correct de la figure",
@@ -427,11 +449,13 @@ def draw_landmarks(image, landmarks, error_landmarks):
 def home():
     return jsonify({
         "status":      "ok",
-        "version":     "15.0 - Seuil inversion + fiabilité hanches/coudes",
+        "version":     "16.0 - Analyse partielle + seuil vue_de_face 0.08",
         "description": "API d'analyse biomécanique Calisthenics",
         "features": {
-            "handstand_detection": "marge inversion > 0.05 (anti faux positif planche)",
-            "fiabilite":           "coudes ET hanches ignorés si visibilité MediaPipe < 0.6"
+            "handstand_detection":  "marge inversion > 0.05 (anti faux positif planche)",
+            "fiabilite_coudes":     "un seul coude fiable suffit, l'autre ignoré",
+            "analyse_partielle":    "message dédié si un seul coude visible et aucune erreur trouvée",
+            "vue_de_face":          "seuil écart X épaules < 0.08 (plus permissif)"
         }
     })
 
@@ -517,7 +541,7 @@ def analyze_static():
             _, buffer = cv2.imencode('.jpg', annotated_image, [cv2.IMWRITE_JPEG_QUALITY, 90])
             image_b64 = base64.b64encode(buffer).decode('utf-8')
 
-            logger.info(f"✓ Analyse terminée: {figure}")
+            logger.info(f"Analyse terminée: {figure}")
 
             # 9. Réponse
             return jsonify({

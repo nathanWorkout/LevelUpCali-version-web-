@@ -4,6 +4,32 @@ import {
   DrawingUtils      // Pour dessiner les points sur le cnavas
 } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest";
 
+// ============================================================================
+// INITIALISATION DES MODÈLES
+// ============================================================================
+const STATIC_SKILLS = {
+  handstand: {
+    elbow:    { min: 160 },
+    shoulder: { min: 160 },
+    hip:      { min: 158 },
+    knee:     { min: 165 }
+  },
+
+  planche: {
+    elbow:    { min: 160 },
+    shoulder: { min: 25, max: 65 },
+    hip:      { min: 148 }
+  },
+
+  front_lever: {
+    elbow:            { min: 160 },
+    shoulder:         { min: 25, max: 65 },
+    hip:              { min: 160 },
+    tolerance_biceps: 3
+  }
+};
+
+
 let poseLandmarker; // Modèle de détection
 let runningMode = "IMAGE"; // Mode image
 async function initializePoseLandmarker() {
