@@ -214,8 +214,10 @@ def analyze_figure(figure, angles, model):
     rk = angles.get("right_knee",     180)
 
     # Fiabilité par articulation (visibilité MediaPipe)
-    coudes_fiables  = angles.get("_le_vis", 1.0) > 0.6 and angles.get("_re_vis", 1.0) > 0.6
-    hanches_fiables = angles.get("_lh_vis", 1.0) > 0.6 and angles.get("_rh_vis", 1.0) > 0.6
+    # Coudes : 0.35 → accepte profil normal, rejette vue de face franche (calcul 2D faux)
+    # Hanches : 0.6  → plus strict, généralement bien visibles
+    coudes_fiables  = angles.get("_le_vis", 1.0) > 0.35 and angles.get("_re_vis", 1.0) > 0.35
+    hanches_fiables = angles.get("_lh_vis", 1.0) > 0.6  and angles.get("_rh_vis", 1.0) > 0.6
 
     deviations = {}
     issue      = None
@@ -497,7 +499,7 @@ def analyze_static():
             _, buffer = cv2.imencode('.jpg', annotated_image, [cv2.IMWRITE_JPEG_QUALITY, 90])
             image_b64 = base64.b64encode(buffer).decode('utf-8')
 
-            logger.info(f"✓ Analyse terminée: {figure}")
+            logger.info(f"Analyse terminée: {figure}")
 
             # 9. Réponse
             return jsonify({
