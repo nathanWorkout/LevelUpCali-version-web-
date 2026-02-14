@@ -214,10 +214,22 @@ def analyze_figure(figure, angles, model):
     rk = angles.get("right_knee",     180)
 
     # Fiabilité par articulation (visibilité MediaPipe)
-    # Coudes : 0.35 → accepte profil normal, rejette vue de face franche (calcul 2D faux)
-    # Hanches : 0.6  → plus strict, généralement bien visibles
-    coudes_fiables  = angles.get("_le_vis", 1.0) > 0.35 and angles.get("_re_vis", 1.0) > 0.35
-    hanches_fiables = angles.get("_lh_vis", 1.0) > 0.6  and angles.get("_rh_vis", 1.0) > 0.6
+    # Coudes : au moins UN coude fiable (> 0.35) suffit pour analyser.
+    #          On utilise alors uniquement l'angle du coude fiable.
+    #          Si les DEUX sont sous 0.35 (vue de face franche) → on ignore.
+    # Hanches : les deux doivent être fiables (> 0.6)
+    le_vis = angles.get("_le_vis", 1.0)
+    re_vis = angles.get("_re_vis", 1.0)
+    le_fiable = le_vis > 0.35
+    re_fiable = re_vis > 0.35
+    coudes_fiables  = le_fiable or re_fiable   # au moins un coude lisible
+    hanches_fiables = angles.get("_lh_vis", 1.0) > 0.6 and angles.get("_rh_vis", 1.0) > 0.6
+
+    logger.info(
+        f"Fiabilité → coude_G:{le_vis:.2f}({'✓' if le_fiable else '✗'}) "
+        f"coude_D:{re_vis:.2f}({'✓' if re_fiable else '✗'}) "
+        f"→ coudes_fiables:{coudes_fiables}"
+    )
 
     deviations = {}
     issue      = None
@@ -237,8 +249,11 @@ def analyze_figure(figure, angles, model):
                 "correction":   "Contracte abdos et fessiers pour aligner le corps verticalement"
             }
 
-        # Erreur 2 — Coudes fléchis (seulement si bien visibles)
-        elif coudes_fiables and (le < model["elbow"]["min"] or re < model["elbow"]["min"]):
+        # Erreur 2 — Coudes fléchis (uniquement les coudes fiables)
+        elif coudes_fiables and (
+            (le_fiable and le < model["elbow"]["min"]) or
+            (re_fiable and re < model["elbow"]["min"])
+        ):
             deviations["coudes_flechis"] = "Oui"
             issue = {
                 "cause":        "Coudes fléchis pendant le maintien",
@@ -286,8 +301,11 @@ def analyze_figure(figure, angles, model):
                 "correction":   "Renforce le gainage : serre abdos et fessiers, rétroversion du bassin"
             }
 
-        # Erreur 2 — Coudes fléchis (ignorée si coudes peu visibles)
-        elif coudes_fiables and (le < model["elbow"]["min"] or re < model["elbow"]["min"]):
+        # Erreur 2 — Coudes fléchis (uniquement les coudes fiables)
+        elif coudes_fiables and (
+            (le_fiable and le < model["elbow"]["min"]) or
+            (re_fiable and re < model["elbow"]["min"])
+        ):
             deviations["coudes_flechis"] = "Oui"
             issue = {
                 "cause":        "Bras fléchis pendant la planche",
@@ -312,8 +330,8 @@ def analyze_figure(figure, angles, model):
 
         hanches_basses      = hanches_fiables and (lh < model["hip"]["min"] or rh < model["hip"]["min"])
         coudes_flechis      = coudes_fiables and (
-                                  le < model["elbow"]["min"] - tolerance or
-                                  re < model["elbow"]["min"] - tolerance
+                                  (le_fiable and le < model["elbow"]["min"] - tolerance) or
+                                  (re_fiable and re < model["elbow"]["min"] - tolerance)
                               )
         epaules_incorrectes = (ls < model["shoulder"]["min"] or ls > model["shoulder"]["max"] or
                                rs < model["shoulder"]["min"] or rs > model["shoulder"]["max"])
@@ -350,7 +368,7 @@ def analyze_figure(figure, angles, model):
         issue = {
             "cause":        "Maintien correct de la figure",
             "compensation": "Aucune",
-            "correction":   "Excellente tenue ! Continue comme ça 💪"
+            "correction":   "Excellente tenue ! Continue comme ça !"
         }
 
     logger.info(f"Analyse {figure}: {issue['cause']}")
@@ -499,7 +517,7 @@ def analyze_static():
             _, buffer = cv2.imencode('.jpg', annotated_image, [cv2.IMWRITE_JPEG_QUALITY, 90])
             image_b64 = base64.b64encode(buffer).decode('utf-8')
 
-            logger.info(f"Analyse terminée: {figure}")
+            logger.info(f"✓ Analyse terminée: {figure}")
 
             # 9. Réponse
             return jsonify({
